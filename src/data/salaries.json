@@ -1,14 +1,222 @@
 {
-  "source": "PLACEHOLDER — replaced with live U.S. BLS OEWS data on the first CI data refresh",
+  "source": "U.S. Bureau of Labor Statistics, Occupational Employment and Wage Statistics (OEWS)",
   "sourceUrl": "https://www.bls.gov/oes/",
-  "occupations": { "anesthesiologist": "29-1211", "crna": "29-1151 (Nurse Anesthetists)" },
-  "measure": "Annual mean wage",
-  "dataYear": null,
-  "asOf": "placeholder",
-  "generatedAt": "seed",
-  "national": {
-    "anesthesiologist": 339470,
-    "crna": 214200
+  "occupations": {
+    "anesthesiologist": "29-1211",
+    "crna": "29-1151 (Nurse Anesthetists)"
   },
-  "states": {}
+  "measure": "Annual mean wage",
+  "dataYear": 2025,
+  "asOf": "2025 (May reference period)",
+  "generatedAt": "2026-07-10",
+  "national": {
+    "anesthesiologist": 360570,
+    "crna": 248320
+  },
+  "states": {
+    "Alabama": {
+      "anesthesiologist": 376440,
+      "crna": 189120
+    },
+    "Alaska": {
+      "anesthesiologist": null,
+      "crna": 311110
+    },
+    "Arizona": {
+      "anesthesiologist": null,
+      "crna": 256610
+    },
+    "Arkansas": {
+      "anesthesiologist": null,
+      "crna": 198540
+    },
+    "California": {
+      "anesthesiologist": null,
+      "crna": 283780
+    },
+    "Colorado": {
+      "anesthesiologist": null,
+      "crna": null
+    },
+    "Connecticut": {
+      "anesthesiologist": 416580,
+      "crna": 225810
+    },
+    "Delaware": {
+      "anesthesiologist": null,
+      "crna": null
+    },
+    "District of Columbia": {
+      "anesthesiologist": 239320,
+      "crna": null
+    },
+    "Florida": {
+      "anesthesiologist": 422780,
+      "crna": 239830
+    },
+    "Georgia": {
+      "anesthesiologist": 276840,
+      "crna": 226330
+    },
+    "Hawaii": {
+      "anesthesiologist": null,
+      "crna": null
+    },
+    "Idaho": {
+      "anesthesiologist": 385470,
+      "crna": 265850
+    },
+    "Illinois": {
+      "anesthesiologist": null,
+      "crna": 251600
+    },
+    "Indiana": {
+      "anesthesiologist": 389030,
+      "crna": null
+    },
+    "Iowa": {
+      "anesthesiologist": null,
+      "crna": 253510
+    },
+    "Kansas": {
+      "anesthesiologist": 375020,
+      "crna": 206320
+    },
+    "Kentucky": {
+      "anesthesiologist": 310560,
+      "crna": 229690
+    },
+    "Louisiana": {
+      "anesthesiologist": 368640,
+      "crna": 243240
+    },
+    "Maine": {
+      "anesthesiologist": null,
+      "crna": 259370
+    },
+    "Maryland": {
+      "anesthesiologist": 371320,
+      "crna": 218050
+    },
+    "Massachusetts": {
+      "anesthesiologist": null,
+      "crna": 303310
+    },
+    "Michigan": {
+      "anesthesiologist": null,
+      "crna": 253760
+    },
+    "Minnesota": {
+      "anesthesiologist": 449130,
+      "crna": 259210
+    },
+    "Mississippi": {
+      "anesthesiologist": null,
+      "crna": 217470
+    },
+    "Missouri": {
+      "anesthesiologist": null,
+      "crna": 271780
+    },
+    "Montana": {
+      "anesthesiologist": null,
+      "crna": 270330
+    },
+    "Nebraska": {
+      "anesthesiologist": 369590,
+      "crna": 255610
+    },
+    "Nevada": {
+      "anesthesiologist": null,
+      "crna": null
+    },
+    "New Hampshire": {
+      "anesthesiologist": 433850,
+      "crna": 277740
+    },
+    "New Jersey": {
+      "anesthesiologist": null,
+      "crna": 290920
+    },
+    "New Mexico": {
+      "anesthesiologist": 325930,
+      "crna": 149980
+    },
+    "New York": {
+      "anesthesiologist": 349940,
+      "crna": 285020
+    },
+    "North Carolina": {
+      "anesthesiologist": null,
+      "crna": 226780
+    },
+    "North Dakota": {
+      "anesthesiologist": null,
+      "crna": 248580
+    },
+    "Ohio": {
+      "anesthesiologist": 422500,
+      "crna": 236830
+    },
+    "Oklahoma": {
+      "anesthesiologist": null,
+      "crna": 190820
+    },
+    "Oregon": {
+      "anesthesiologist": null,
+      "crna": 280010
+    },
+    "Pennsylvania": {
+      "anesthesiologist": 425950,
+      "crna": 233320
+    },
+    "Rhode Island": {
+      "anesthesiologist": null,
+      "crna": null
+    },
+    "South Carolina": {
+      "anesthesiologist": 283240,
+      "crna": 276380
+    },
+    "South Dakota": {
+      "anesthesiologist": null,
+      "crna": 249720
+    },
+    "Tennessee": {
+      "anesthesiologist": 323070,
+      "crna": 218870
+    },
+    "Texas": {
+      "anesthesiologist": 276470,
+      "crna": 255820
+    },
+    "Utah": {
+      "anesthesiologist": null,
+      "crna": 139750
+    },
+    "Vermont": {
+      "anesthesiologist": 290320,
+      "crna": 289870
+    },
+    "Virginia": {
+      "anesthesiologist": 388620,
+      "crna": 254820
+    },
+    "Washington": {
+      "anesthesiologist": 508520,
+      "crna": 273760
+    },
+    "West Virginia": {
+      "anesthesiologist": null,
+      "crna": 275100
+    },
+    "Wisconsin": {
+      "anesthesiologist": 411910,
+      "crna": 272470
+    },
+    "Wyoming": {
+      "anesthesiologist": null,
+      "crna": 260650
+    }
+  }
 }
