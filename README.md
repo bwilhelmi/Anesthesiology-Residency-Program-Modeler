@@ -93,6 +93,31 @@ your own staffing model and local interpretation.
 
 ---
 
+## Regional salary data (BLS OEWS)
+
+The **Community salaries** section includes a region picker that fills the
+anesthesiologist and CRNA salary fields from real regional data.
+
+- **Source:** U.S. Bureau of Labor Statistics, Occupational Employment and Wage
+  Statistics (OEWS) — annual mean wages by state for Anesthesiologists
+  (SOC 29‑1211) and Nurse Anesthetists / CRNAs (29‑1151). This is official,
+  public-domain data, unlike scraped job-board listings.
+- **Market premium:** BLS reports *employed* wages, which typically run below
+  the aggressive offers seen on job boards such as gaswork.com. The premium
+  slider scales the BLS baseline upward so you can reflect local market offers
+  without scraping anyone's site.
+- **How it stays current:** `scripts/fetch-bls.mjs` pulls the data from the BLS
+  public API and writes `src/data/salaries.json`. The
+  `.github/workflows/update-salary-data.yml` workflow runs it yearly (BLS OEWS
+  refreshes each spring) and commits any changes. Add a free
+  [BLS API key](https://data.bls.gov/registrationEngine/) as the repo secret
+  `BLS_API_KEY` to raise the rate limits (it also works without one).
+
+> Note on gaswork.com: it is a job board, not a salary dataset — pay lives in
+> free-text postings, it blocks automated access, and republishing its listings
+> would raise terms-of-use concerns. BLS OEWS is the right source for regional
+> averages; use gaswork as a manual spot-check to set the market premium.
+
 ## Project structure
 
 ```

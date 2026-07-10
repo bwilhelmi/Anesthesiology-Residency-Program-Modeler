@@ -1,0 +1,14 @@
+{
+  "source": "PLACEHOLDER — replaced with live U.S. BLS OEWS data on the first CI data refresh",
+  "sourceUrl": "https://www.bls.gov/oes/",
+  "occupations": { "anesthesiologist": "29-1211", "crna": "29-1151 (Nurse Anesthetists)" },
+  "measure": "Annual mean wage",
+  "dataYear": null,
+  "asOf": "placeholder",
+  "generatedAt": "seed",
+  "national": {
+    "anesthesiologist": 339470,
+    "crna": 214200
+  },
+  "states": {}
+}

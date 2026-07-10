@@ -17,6 +17,7 @@ import {
   ToggleField,
 } from "./components/Field";
 import { Results } from "./components/Results";
+import { RegionPicker } from "./components/RegionPicker";
 import { currency, number } from "./format";
 
 const STORAGE_KEY = "anesthesia-residency-model-inputs-v1";
@@ -112,6 +113,11 @@ export function App() {
           </Section>
 
           <Section title="Community salaries" subtitle="Local market compensation">
+            <RegionPicker
+              onApply={(anesthesiologist, crna) =>
+                patchSalaries({ anesthesiologistSalary: anesthesiologist, crnaSalary: crna })
+              }
+            />
             <NumberField
               label="Anesthesiologist salary"
               value={inputs.salaries.anesthesiologistSalary}

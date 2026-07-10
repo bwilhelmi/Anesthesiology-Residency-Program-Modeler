@@ -1,0 +1,48 @@
+name: Update BLS salary data
+
+# Fetches anesthesiologist / CRNA mean wages by state from the BLS OEWS public
+# API and commits the refreshed src/data/salaries.json. BLS OEWS updates once a
+# year (spring), so this runs on a yearly schedule and can be triggered manually.
+#
+# Optional: add a free BLS API key as the repo secret BLS_API_KEY to raise the
+# rate limits (https://data.bls.gov/registrationEngine/). Works without one too.
+on:
+  schedule:
+    - cron: "0 12 1 5 *" # 12:00 UTC on May 1 each year
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-salary-data
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Fetch BLS OEWS wages
+        env:
+          BLS_API_KEY: ${{ secrets.BLS_API_KEY }}
+        run: node scripts/fetch-bls.mjs
+
+      - name: Commit updated data if changed
+        run: |
+          if git diff --quiet -- src/data/salaries.json; then
+            echo "No changes to salary data."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/data/salaries.json
+          git commit -m "Refresh BLS OEWS salary data"
+          git push
