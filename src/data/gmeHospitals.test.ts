@@ -5,7 +5,9 @@ import {
   GME_STATES,
   hospitalByCcn,
   hospitalsInState,
+  medicaidStateProfile,
 } from "../ui/gmeHospitals";
+import profilesFile from "./medicaidStateProfiles.json";
 
 /**
  * Guards on the CMS-derived GME dataset. These pin a few values verified by hand
@@ -87,6 +89,27 @@ describe("GME hospital dataset", () => {
     expect(mgh?.medicaidDgme).toBeNull();
     expect(mgh?.medicaidIme).toBeNull();
     expect(mgh?.medicaidProgram).toBeNull();
+  });
+
+  it("has a Medicaid funding profile for every identified hospital's state", () => {
+    for (const h of GME_HOSPITALS) {
+      if (!h.state) continue; // a few HCRIS reports lack a PUF identity/state
+      expect(medicaidStateProfile(h.state), `missing profile for ${h.state}`).toBeDefined();
+    }
+  });
+
+  it("covers all 50 states + DC + PR in the state profiles, with sourced fields", () => {
+    const profiles = (
+      profilesFile as { profiles: Record<string, { sourceUrl: string }> }
+    ).profiles;
+    expect(Object.keys(profiles).length).toBe(52);
+    // A non-paying state (per AAMC) and a paying one both resolve correctly.
+    expect(medicaidStateProfile("MA")?.paysMedicaidGme).toBe(false);
+    expect(medicaidStateProfile("NY")?.paysMedicaidGme).toBe(true);
+    // Every profile carries a source URL — no unsourced claims.
+    for (const prof of Object.values(profiles)) {
+      expect(prof.sourceUrl.startsWith("http")).toBe(true);
+    }
   });
 
   it("filters by state consistently with the state list", () => {

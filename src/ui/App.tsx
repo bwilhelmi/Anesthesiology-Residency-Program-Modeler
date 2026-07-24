@@ -19,6 +19,7 @@ import {
 import { Results } from "./components/Results";
 import { RegionPicker } from "./components/RegionPicker";
 import { HospitalPicker } from "./components/HospitalPicker";
+import { Bibliography } from "./components/References";
 import { currency, number } from "./format";
 
 const STORAGE_KEY = "anesthesia-residency-model-inputs-v1";
@@ -396,6 +397,8 @@ export function App() {
           <Results result={result} />
         </div>
       </main>
+
+      <Bibliography />
 
       <footer className="app-footer">
         <p>

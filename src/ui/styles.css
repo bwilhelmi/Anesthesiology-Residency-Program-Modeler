@@ -344,6 +344,65 @@ body {
   color: var(--text-muted);
 }
 
+/* Citations + bibliography */
+.cite {
+  font-size: 0.7em;
+  line-height: 0;
+  font-weight: 600;
+  margin-left: 1px;
+}
+.cite a {
+  color: var(--brand-strong);
+  text-decoration: none;
+}
+.cite a:hover {
+  text-decoration: underline;
+}
+.references {
+  border-top: 1px solid var(--border);
+  padding: 20px 24px 8px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+.references h2 {
+  font-size: 15px;
+  margin: 0 0 12px;
+  color: var(--text);
+}
+.ref-list {
+  margin: 0;
+  padding-left: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.ref-list li {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  scroll-margin-top: 16px;
+}
+.ref-list li:target {
+  background: color-mix(in srgb, var(--brand) 12%, transparent);
+  border-radius: 6px;
+  padding: 2px 6px;
+  margin-left: -6px;
+}
+.ref-label {
+  color: var(--text);
+  font-weight: 600;
+}
+.ref-url {
+  color: var(--brand-strong);
+  word-break: break-all;
+}
+.ref-foot {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  margin: 14px 0 0;
+  font-style: italic;
+}
+
 /* Hospital GME picker */
 .hp-selectors {
   display: flex;
@@ -464,6 +523,61 @@ body {
   color: var(--text);
   font-variant-numeric: tabular-nums;
   font-size: 15px;
+}
+.hp-medicaid-state {
+  gap: 8px;
+}
+.hp-state-summary {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text);
+}
+.hp-state-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.hp-chip {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  background: var(--surface);
+}
+.hp-chip-yes {
+  color: var(--brand-strong);
+  border-color: color-mix(in srgb, var(--brand) 40%, var(--border));
+}
+.hp-chip-no {
+  color: #8a5a12;
+  border-color: color-mix(in srgb, #b7791f 40%, var(--border));
+}
+.hp-state-link {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-decoration: none;
+  width: fit-content;
+}
+.hp-state-link:hover {
+  text-decoration: underline;
+}
+.hp-state-callout {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--brand-strong);
+  text-decoration: none;
+  width: fit-content;
+  padding: 6px 10px;
+  border: 1px solid color-mix(in srgb, var(--brand) 40%, var(--border));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--brand) 10%, transparent);
+}
+.hp-state-callout:hover {
+  text-decoration: underline;
 }
 .hp-secondary {
   display: flex;

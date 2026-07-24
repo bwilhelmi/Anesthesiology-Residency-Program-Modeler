@@ -7,6 +7,7 @@ import {
 } from "../regions";
 import { currency, percent } from "../format";
 import { SliderField } from "./Field";
+import { Cite } from "./References";
 
 /**
  * Lets the user pick a state and pull BLS OEWS anesthesiologist / CRNA mean
@@ -53,7 +54,10 @@ export function RegionPicker({
       {preview ? (
         <div className="region-preview">
           <div className="region-figure">
-            <span className="region-figure-label">Anesthesiologist</span>
+            <span className="region-figure-label">
+              Anesthesiologist
+              <Cite ns={[5]} />
+            </span>
             <span className="region-figure-value">
               {currency(preview.anesthesiologist)}
               {preview.anesthesiologistEstimated && (
@@ -64,7 +68,10 @@ export function RegionPicker({
             </span>
           </div>
           <div className="region-figure">
-            <span className="region-figure-label">CRNA</span>
+            <span className="region-figure-label">
+              CRNA
+              <Cite ns={[5]} />
+            </span>
             <span className="region-figure-value">
               {currency(preview.crna)}
               {preview.crnaEstimated && (

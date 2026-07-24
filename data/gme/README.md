@@ -75,8 +75,34 @@ per state and merged onto the Medicare records by CCN.
   many hospitals the Medicaid GME dwarfs the Medicare figure (e.g. Banner–UMC
   Tucson: $90.0M Medicaid vs ~$26M Medicare).
 
-To add another state, produce a `medicaidGme<ST>.json` in the same `{meta, byCcn}`
-shape and push it into `MEDICAID_SOURCES` in `src/ui/gmeHospitals.ts`.
+To add another state's **per-hospital** data, produce a `medicaidGme<ST>.json` in
+the same `{meta, byCcn}` shape and push it into `MEDICAID_SOURCES` in
+`src/ui/gmeHospitals.ts`.
+
+### All-state Medicaid GME funding profiles
+
+`src/data/medicaidStateProfiles.json` holds a Medicaid GME funding profile for all
+50 states, DC, and Puerto Rico (52 jurisdictions). The picker shows the profile
+whenever a hospital has **no per-hospital Medicaid figure**, so a program director
+always gets: the state's funding mechanism, whether it recognizes Direct/Indirect,
+any state-level total, a plain-language summary, and a source link — plus, when the
+state publishes per-hospital amounts, a direct "look up this hospital" link.
+
+Each profile is sourced (primarily the **AAMC Medicaid GME 2022 50-State Survey**,
+plus MACPAC and state Medicaid agencies); a `null` field means it was not
+confidently established — nothing is guessed. Highlights from the compiled set:
+
+- **44 of 50 states pay Medicaid GME**; 7 do not (AK, AL, MA, ND, NH, RI, WY).
+- **8 jurisdictions publish per-hospital dollar files** (candidates for full
+  AZ-style ingestion): AZ (done), FL, ME, MI, MN, NJ, NV, UT.
+- Largest programs are state-total only (not per-hospital public): NY (~$1.92B),
+  FL (~$1.0B combined), VA (~$450M), CA (~$415M).
+- Much Medicaid GME now flows through managed-care capitation and is **not
+  recoverable per hospital** — flagged in those states' summaries rather than
+  estimated.
+
+Puerto Rico is included as a territory profile with unknown fields left null (it is
+outside the 50-state survey and funded under a capped block grant).
 
 ## Worksheet cell map (CMS-2552-10)
 

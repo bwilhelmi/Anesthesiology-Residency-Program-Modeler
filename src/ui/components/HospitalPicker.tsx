@@ -4,9 +4,11 @@ import {
   GME_STATES,
   hospitalByCcn,
   hospitalsInState,
+  medicaidStateProfile,
   type GmeHospital,
 } from "../gmeHospitals";
 import { currency, number } from "../format";
+import { Cite } from "./References";
 
 /**
  * Lets the user find their hospital and see its real Medicare GME position —
@@ -144,6 +146,7 @@ function HospitalDetail({
 
       <div className="hp-headline">
         <HeadlineFigure
+          cite={[1]}
           label="Resident cap space"
           value={
             h.capFte != null
@@ -161,11 +164,13 @@ function HospitalDetail({
           }
         />
         <HeadlineFigure
+          cite={[1, 6]}
           label="Medicare Direct GME"
           value={h.dgmePayment != null ? currency(h.dgmePayment) : "Not reported"}
           sub="Medicare direct training payment / yr"
         />
         <HeadlineFigure
+          cite={[1, 6]}
           label="Medicare Indirect ME"
           value={h.imePayment != null ? currency(h.imePayment) : "Not reported"}
           sub="Medicare IME add-on / yr"
@@ -177,6 +182,7 @@ function HospitalDetail({
           <div className="hp-medicaid-head">
             {h.medicaidProgram} — Medicaid GME
             {h.medicaidYear ? ` · academic year ${h.medicaidYear}` : ""}
+            <Cite ns={[3]} />
           </div>
           <div className="hp-medicaid-figs">
             <span>
@@ -191,7 +197,9 @@ function HospitalDetail({
             </span>
           </div>
         </div>
-      ) : null}
+      ) : (
+        <MedicaidStatePanel state={h.state} />
+      )}
 
       <div className="hp-secondary">
         {h.praPrimaryCare != null && (
@@ -203,16 +211,19 @@ function HospitalDetail({
                 ? ` / ${currency(h.praNonPrimary)}`
                 : ""}
             </strong>
+            <Cite ns={[1]} />
           </span>
         )}
         {h.actualFte != null && (
           <span>
             Residents in training: <strong>{number(h.actualFte, 1)} FTE</strong>
+            <Cite ns={[1]} />
           </span>
         )}
         {h.beds != null && (
           <span>
             Beds: <strong>{number(h.beds)}</strong>
+            <Cite ns={[2]} />
           </span>
         )}
       </div>
@@ -226,18 +237,82 @@ function HospitalDetail({
   );
 }
 
+/**
+ * Shown when a hospital has no per-hospital Medicaid GME figure: the state's
+ * Medicaid GME funding mechanism, what public data exists, any state-level total,
+ * and a link to the source — so the program director isn't left with a blank.
+ */
+function MedicaidStatePanel({ state }: { state: string }) {
+  const p = medicaidStateProfile(state);
+  if (!p) {
+    return (
+      <div className="hp-medicaid hp-medicaid-state">
+        <div className="hp-medicaid-head">State Medicaid GME</div>
+        <p className="hp-state-summary">
+          A per-hospital Medicaid GME figure is not available for this hospital, and a
+          funding profile for this state has not been compiled yet.
+        </p>
+      </div>
+    );
+  }
+  const chip = (label: string, v: boolean | null) =>
+    v == null ? null : (
+      <span className={`hp-chip ${v ? "hp-chip-yes" : "hp-chip-no"}`}>
+        {label}: {v ? "Yes" : "No"}
+      </span>
+    );
+  return (
+    <div className="hp-medicaid hp-medicaid-state">
+      <div className="hp-medicaid-head">
+        {p.stateName} Medicaid GME — no per-hospital figure published
+      </div>
+      <p className="hp-state-summary">{p.summary}</p>
+      <div className="hp-state-meta">
+        <span className="hp-chip hp-chip-neutral">{p.mechanism}</span>
+        {chip("Direct", p.recognizesDirect)}
+        {chip("Indirect", p.recognizesIndirect)}
+        {p.aggregateAnnualGmeUsd != null && (
+          <span className="hp-chip hp-chip-neutral">
+            State total: {currency(p.aggregateAnnualGmeUsd, { compact: true })}
+            {p.aggregateYear ? ` (${p.aggregateYear})` : ""}
+            <Cite ns={[4]} />
+          </span>
+        )}
+      </div>
+      {p.perHospitalDataAvailable && p.perHospitalDataUrl && (
+        <a
+          className="hp-state-callout"
+          href={p.perHospitalDataUrl}
+          target="_blank"
+          rel="noreferrer"
+        >
+          {p.stateName} publishes per-hospital GME amounts — look up this hospital ↗
+        </a>
+      )}
+      <a className="hp-state-link" href={p.sourceUrl} target="_blank" rel="noreferrer">
+        Source: {p.sourceName} ↗
+      </a>
+    </div>
+  );
+}
+
 function HeadlineFigure({
   label,
   value,
   sub,
+  cite,
 }: {
   label: string;
   value: string;
   sub?: string;
+  cite?: number[];
 }) {
   return (
     <div className="hp-figure">
-      <span className="hp-figure-label">{label}</span>
+      <span className="hp-figure-label">
+        {label}
+        {cite ? <Cite ns={cite} /> : null}
+      </span>
       <span className="hp-figure-value">{value}</span>
       {sub ? <span className="hp-figure-sub">{sub}</span> : null}
     </div>

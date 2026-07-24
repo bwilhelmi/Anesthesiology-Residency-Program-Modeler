@@ -1,0 +1,99 @@
+import React from "react";
+
+/**
+ * Central bibliography for every sourced number shown in the tool. Figures in the
+ * hospital picker and salary picker carry a superscript <Cite> that links to the
+ * matching numbered entry rendered by <Bibliography> at the bottom of the page.
+ *
+ * Keep the numbers stable — they are anchor targets (#ref-N). Add new sources at
+ * the end rather than renumbering.
+ */
+export interface Reference {
+  n: number;
+  label: string;
+  note?: string;
+  url: string;
+}
+
+export const REFERENCES: Reference[] = [
+  {
+    n: 1,
+    label:
+      "CMS Healthcare Cost Report Information System (HCRIS) — Hospital Cost Report, Form CMS-2552-10 (FY2019–2024)",
+    note: "Medicare resident FTE cap, Direct GME payment, Indirect Medical Education payment, Per-Resident Amount, and resident FTE counts, from Worksheets E-4 and E Part A. Each hospital uses its most authoritative report (settled preferred, then most recent).",
+    url: "https://www.cms.gov/data-research/statistics-trends-reports/cost-reports/hospital-2010-form",
+  },
+  {
+    n: 2,
+    label: "CMS Hospital Provider Cost Report Public Use File",
+    note: "Hospital name, city, state, and bed count, joined to the HCRIS figures by CMS Certification Number.",
+    url: "https://data.cms.gov/provider-compliance/cost-report/hospital-provider-cost-report",
+  },
+  {
+    n: 3,
+    label: "AHCCCS (Arizona Medicaid) — Graduate Medical Education Payments",
+    note: "Arizona per-hospital Direct (DME) and Indirect (IME) Medicaid GME payments by academic year (actual distributed payments).",
+    url: "https://www.azahcccs.gov/PlansProviders/RatesAndBilling/GMEpayments.html",
+  },
+  {
+    n: 4,
+    label:
+      "AAMC — Medicaid Graduate Medical Education Payments: Results From the 2022 50-State Survey",
+    note: "State-level Medicaid GME totals, direct/indirect recognition, and payment mechanism used in the state funding profiles. Each state profile additionally cites its specific state Medicaid agency source inline.",
+    url: "https://store.aamc.org/medicaid-graduate-medical-education-payments-results-from-the-2022-50-state-survey.html",
+  },
+  {
+    n: 5,
+    label: "U.S. Bureau of Labor Statistics — Occupational Employment and Wage Statistics (OEWS)",
+    note: "Default anesthesiologist and CRNA wage figures used by the region salary picker.",
+    url: "https://www.bls.gov/oes/",
+  },
+  {
+    n: 6,
+    label:
+      "CMS — Indirect Medical Education (IME) and Direct GME payment methodology (42 CFR 412.105; 42 CFR 413.75–413.83)",
+    note: "The federal formulas the model uses to estimate marginal Medicare IME and DGME revenue from added residents.",
+    url: "https://www.cms.gov/medicare/payment/prospective-payment-systems/acute-inpatient-pps/indirect-medical-education-ime",
+  },
+];
+
+/** Superscript footnote marker(s) linking to the bibliography, e.g. <Cite ns={[1,2]} />. */
+export function Cite({ ns }: { ns: number[] }) {
+  return (
+    <sup className="cite">
+      {ns.map((n, i) => (
+        <React.Fragment key={n}>
+          {i > 0 ? "," : null}
+          <a href={`#ref-${n}`} aria-label={`Reference ${n}`}>
+            {n}
+          </a>
+        </React.Fragment>
+      ))}
+    </sup>
+  );
+}
+
+/** The numbered bibliography rendered at the bottom of the page. */
+export function Bibliography() {
+  return (
+    <section className="references" id="references" aria-label="References and data sources">
+      <h2>References &amp; data sources</h2>
+      <ol className="ref-list">
+        {REFERENCES.map((r) => (
+          <li key={r.n} id={`ref-${r.n}`}>
+            <span className="ref-label">{r.label}.</span>{" "}
+            {r.note ? <span className="ref-note">{r.note} </span> : null}
+            <a className="ref-url" href={r.url} target="_blank" rel="noreferrer">
+              {r.url}
+            </a>
+          </li>
+        ))}
+      </ol>
+      <p className="ref-foot">
+        Figures are drawn from the sources above for modeling and discussion; they are not
+        official CMS, AHCCCS, or state Medicaid determinations. Where a number was not
+        publicly available it is shown as &ldquo;Not reported&rdquo; and never estimated.
+      </p>
+    </section>
+  );
+}

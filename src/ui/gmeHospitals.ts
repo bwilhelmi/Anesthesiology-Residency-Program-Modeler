@@ -10,6 +10,7 @@
 
 import raw from "../data/gmeHospitals.json";
 import medicaidAZ from "../data/medicaidGmeAZ.json";
+import stateProfiles from "../data/medicaidStateProfiles.json";
 
 export interface GmeHospital {
   /** CMS Certification Number (Medicare provider number), zero-padded to 6. */
@@ -112,4 +113,34 @@ export function hospitalsInState(state: string): GmeHospital[] {
 
 export function hospitalByCcn(ccn: string): GmeHospital | undefined {
   return GME_HOSPITALS.find((h) => h.ccn === ccn);
+}
+
+/**
+ * A state's Medicaid GME funding profile — shown when a hospital has no
+ * per-hospital Medicaid figure, so a program director still gets the state's
+ * mechanism, what public data exists, any state-level total, and a source link.
+ */
+export interface MedicaidStateProfile {
+  state: string;
+  stateName: string;
+  /** Whether the state Medicaid program pays GME; null when not established (e.g. territories). */
+  paysMedicaidGme: boolean | null;
+  recognizesDirect: boolean | null;
+  recognizesIndirect: boolean | null;
+  mechanism: string;
+  perHospitalDataAvailable: boolean;
+  perHospitalDataUrl: string | null;
+  aggregateAnnualGmeUsd: number | null;
+  aggregateYear: number | null;
+  summary: string;
+  sourceName: string;
+  sourceUrl: string;
+}
+
+const STATE_PROFILES = (stateProfiles as { profiles: Record<string, MedicaidStateProfile> })
+  .profiles;
+
+/** The Medicaid GME funding profile for a two-letter state code, if we have one. */
+export function medicaidStateProfile(state: string): MedicaidStateProfile | undefined {
+  return STATE_PROFILES[state];
 }
