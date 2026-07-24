@@ -1,6 +1,7 @@
 import React from "react";
 import {
   IS_PLACEHOLDER,
+  MARKET_PREMIUM_DEFAULTS,
   regionSalaries,
   SALARY_DATA,
   US_STATES,
@@ -10,9 +11,10 @@ import { SliderField } from "./Field";
 import { Cite } from "./References";
 
 /**
- * Lets the user pick a state and pull BLS OEWS anesthesiologist / CRNA mean
- * wages into the model's salary fields, scaled by a "market premium" that
- * reflects job-board (e.g. gaswork.com) offers running above employed means.
+ * Lets the user pick a state and pull BLS OEWS anesthesiologist / CRNA mean wages
+ * into the model's salary fields, scaled by role-specific "market premiums" whose
+ * defaults are calibrated to national recruiting/compensation benchmarks
+ * (Merritt Hawkins / AMN and Doximity) — see MARKET_PREMIUM_DEFAULTS.
  */
 export function RegionPicker({
   onApply,
@@ -20,9 +22,12 @@ export function RegionPicker({
   onApply: (anesthesiologist: number, crna: number) => void;
 }) {
   const [region, setRegion] = React.useState<string>("");
-  const [premium, setPremium] = React.useState<number>(0.1);
+  const [anesthPremium, setAnesthPremium] = React.useState<number>(
+    MARKET_PREMIUM_DEFAULTS.anesthesiologist,
+  );
+  const [crnaPremium, setCrnaPremium] = React.useState<number>(MARKET_PREMIUM_DEFAULTS.crna);
 
-  const preview = regionSalaries(region, premium);
+  const preview = regionSalaries(region, anesthPremium, crnaPremium);
 
   return (
     <div className="region">
@@ -43,13 +48,25 @@ export function RegionPicker({
       </div>
 
       <SliderField
-        label="Market premium over BLS baseline"
-        help="BLS reports employed-wage means; job-board offers (e.g. gaswork.com) often run higher. Nudge this to reflect local market offers."
-        value={premium}
-        onChange={setPremium}
-        max={0.5}
+        label="Anesthesiologist market premium"
+        help="Default +25% reflects that the BLS employed-wage mean sits below market: Merritt Hawkins / AMN put nonacademic starting base near $450K (~+25%), Doximity puts total compensation at $523K (~+45%, including bonus/production loaded separately)."
+        value={anesthPremium}
+        onChange={setAnesthPremium}
+        max={0.6}
         format={(v) => `+${percent(v)}`}
       />
+      <SliderField
+        label="CRNA market premium"
+        help="Default +10%. The BLS CRNA mean is already close to market, so the gap is far smaller than for physicians; the physician benchmarks do not apply to CRNAs."
+        value={crnaPremium}
+        onChange={setCrnaPremium}
+        max={0.4}
+        format={(v) => `+${percent(v)}`}
+      />
+      <p className="region-source">
+        Premium defaults calibrated to national benchmarks<Cite ns={[5, 11, 12]} />: BLS OEWS
+        employed means, Merritt Hawkins / AMN recruiting incentives, and Doximity compensation.
+      </p>
 
       {preview ? (
         <div className="region-preview">

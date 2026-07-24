@@ -80,6 +80,18 @@ export const REFERENCES: Reference[] = [
     note: "Minnesota per-hospital MERC (Medical Education & Research Costs) awards; combined, not split into direct/indirect.",
     url: "https://www.health.state.mn.us/facilities/ruralhealth/merc/docs/distribution25.pdf",
   },
+  {
+    n: 11,
+    label: "Merritt Hawkins / AMN Healthcare — Review of Physician and Advanced Practitioner Recruiting Incentives (2024)",
+    note: "National recruiting benchmark used to calibrate the default anesthesiologist market premium (nonacademic starting base near $450,000).",
+    url: "https://www.amnhealthcare.com/siteassets/amn-insights/physician/incentive-review-2024-final.pdf",
+  },
+  {
+    n: 12,
+    label: "Doximity — 2025 Physician Compensation Report",
+    note: "National compensation benchmark used as the upper bound for the anesthesiologist market premium (anesthesiology total compensation $523,277).",
+    url: "https://www.doximity.com/reports/physician-compensation-report/2025",
+  },
 ];
 
 /** Superscript footnote marker(s) linking to the bibliography, e.g. <Cite ns={[1,2]} />. */

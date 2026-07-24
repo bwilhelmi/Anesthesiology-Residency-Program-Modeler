@@ -30,6 +30,29 @@ export const SALARY_DATA = salaryData as unknown as SalaryDataset;
 /** Whether the bundled dataset is still the placeholder seed (no CI pull yet). */
 export const IS_PLACEHOLDER = SALARY_DATA.generatedAt === "seed";
 
+/**
+ * Default "market premium" over the BLS OEWS employed-wage mean, by role, used to
+ * seed the region picker. These are calibrated to national recruiting/compensation
+ * benchmarks, NOT invented:
+ *
+ *   Anesthesiologist (+25%): the BLS OEWS mean ($360,570) sits well below market
+ *   because many anesthesiologists earn above the survey's top code. Merritt
+ *   Hawkins / AMN report a nonacademic starting BASE near $450,000 (≈ +25% over
+ *   the BLS mean); Doximity's 2025 report puts anesthesiology *total* compensation
+ *   at $523,277 (≈ +45%, but that includes bonus/production the model loads
+ *   separately). +25% anchors the base salary to the Merritt Hawkins figure, with
+ *   Doximity as the upper bound.  [refs 5, 11, 12]
+ *
+ *   CRNA (+10%): the BLS OEWS CRNA mean ($248,320) is already close to market, so
+ *   the gap is far smaller than for physicians; +10% reflects recruiting/locum
+ *   rates running modestly above the employed mean. The physician anchors above do
+ *   not apply to CRNAs.
+ */
+export const MARKET_PREMIUM_DEFAULTS = {
+  anesthesiologist: 0.25,
+  crna: 0.1,
+} as const;
+
 /** The 50 states + DC, in display order. Always shown, even if data is sparse. */
 export const US_STATES: string[] = [
   "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado",
@@ -52,24 +75,30 @@ export interface RegionSalaries {
 }
 
 /**
- * Resolve baseline wages for a region, falling back to the national figure when
- * a state's value is missing, then applying the market premium multiplier.
+ * Resolve baseline wages for a region, falling back to the national figure when a
+ * state's value is missing, then applying role-specific market premiums. Premiums
+ * are per-role because the BLS-vs-market gap differs sharply by role (see
+ * MARKET_PREMIUM_DEFAULTS).
  *
  * @param state         one of US_STATES, or "" / "National" for the national figure
- * @param marketPremium fraction added on top of the BLS baseline (e.g. 0.1 = +10%)
+ * @param anesthPremium fraction added to the anesthesiologist BLS baseline
+ * @param crnaPremium   fraction added to the CRNA BLS baseline
  */
-export function regionSalaries(state: string, marketPremium: number): RegionSalaries | null {
+export function regionSalaries(
+  state: string,
+  anesthPremium: number,
+  crnaPremium: number,
+): RegionSalaries | null {
   const nat = SALARY_DATA.national;
   const st = SALARY_DATA.states[state];
-  const factor = 1 + Math.max(-0.5, marketPremium);
 
   const anesthBase = st?.anesthesiologist ?? nat.anesthesiologist;
   const crnaBase = st?.crna ?? nat.crna;
   if (anesthBase == null || crnaBase == null) return null;
 
   return {
-    anesthesiologist: Math.round(anesthBase * factor),
-    crna: Math.round(crnaBase * factor),
+    anesthesiologist: Math.round(anesthBase * (1 + Math.max(-0.5, anesthPremium))),
+    crna: Math.round(crnaBase * (1 + Math.max(-0.5, crnaPremium))),
     anesthesiologistEstimated: st?.anesthesiologist == null,
     crnaEstimated: st?.crna == null,
   };
