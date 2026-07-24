@@ -72,6 +72,23 @@ describe("GME hospital dataset", () => {
     }
   });
 
+  it("merges Arizona Medicaid (AHCCCS) direct and indirect GME by CCN", () => {
+    // Banner – UMC Tucson, AHCCCS academic year 2024: DME 23,095,849 + IME 66,921,477.
+    const tucson = hospitalByCcn("030064");
+    expect(tucson?.name).toContain("BANNER UNIVERSITY MED CENTER TUCSON");
+    expect(tucson?.medicaidProgram).toContain("AHCCCS");
+    expect(tucson?.medicaidYear).toBe(2024);
+    expect(tucson?.medicaidDgme).toBe(23095849);
+    expect(tucson?.medicaidIme).toBe(66921477);
+  });
+
+  it("leaves Medicaid figures null where no state data maps (e.g. out of state)", () => {
+    const mgh = hospitalByCcn("220071"); // Massachusetts — no AZ Medicaid data
+    expect(mgh?.medicaidDgme).toBeNull();
+    expect(mgh?.medicaidIme).toBeNull();
+    expect(mgh?.medicaidProgram).toBeNull();
+  });
+
   it("filters by state consistently with the state list", () => {
     expect(GME_STATES).toContain("AZ");
     const az = hospitalsInState("AZ");

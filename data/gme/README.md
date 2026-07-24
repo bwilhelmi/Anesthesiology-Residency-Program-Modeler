@@ -49,6 +49,35 @@ The PUF is used only for hospital identity, joined on CCN (newest year wins).
 > [Hospital Cost Report methodology (PDF)](https://data.cms.gov/sites/default/files/2022-09/d9c8e500-2e65-4949-afc2-d965482ce27b/Hospital%20Cost%20Report_Methodology.pdf),
 > [CMS HCRIS program](https://www.cms.gov/data-research/statistics-trends-reports/cost-reports/hospital-2010-form).
 
+## State Medicaid GME (in addition to Medicare)
+
+Medicaid GME is state-run and not in the federal cost reports, so it is sourced
+per state and merged onto the Medicare records by CCN.
+
+### Arizona — AHCCCS
+
+- **Source:** AHCCCS "Medicaid Graduate Medical Education Payments" payment-history
+  workbook, `data/gme/az-source/GMEpayments.xlsx` (committed — it is small and the
+  upstream URL is overwritten each year). Download:
+  `https://www.azahcccs.gov/PlansProviders/Downloads/HospitalSupplements/GMEpayments.xlsx`
+- **What it is:** *actual distributed* Medicaid payments (not a formula estimate),
+  split into **Direct (DME)** and **Indirect (IME)** medical education, per hospital,
+  by academic year (July 1 – June 30). The Summary total includes both the state
+  General Fund share and the IGT/IGA-funded non-federal share, each matched with
+  federal Medicaid dollars — i.e. "all direct and indirect GME money from the
+  Medicaid program or other state funds." (Per-source GF vs IGA splits are on
+  separate sheets of the same workbook.)
+- **Build:** `node scripts/build-medicaid-az.mjs` → `src/data/medicaidGmeAZ.json`,
+  keyed by CCN via an explicit, hand-verified AHCCCS-name→CCN crosswalk. Hospitals
+  AHCCCS lists that are not in our acute-care teaching set (Banner Payson,
+  HonorHealth Rehab) are reported as unmatched, not silently dropped.
+- **AZ scale (academic year 2024):** ~$131M direct + ~$341M indirect ≈ $472M — for
+  many hospitals the Medicaid GME dwarfs the Medicare figure (e.g. Banner–UMC
+  Tucson: $90.0M Medicaid vs ~$26M Medicare).
+
+To add another state, produce a `medicaidGme<ST>.json` in the same `{meta, byCcn}`
+shape and push it into `MEDICAID_SOURCES` in `src/ui/gmeHospitals.ts`.
+
 ## Worksheet cell map (CMS-2552-10)
 
 Verified empirically against the data — `Line 7 == min(Line 5, Line 6)` and

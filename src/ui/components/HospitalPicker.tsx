@@ -161,16 +161,37 @@ function HospitalDetail({
           }
         />
         <HeadlineFigure
-          label="Direct GME (DGME)"
+          label="Medicare Direct GME"
           value={h.dgmePayment != null ? currency(h.dgmePayment) : "Not reported"}
           sub="Medicare direct training payment / yr"
         />
         <HeadlineFigure
-          label="Indirect ME (IME)"
+          label="Medicare Indirect ME"
           value={h.imePayment != null ? currency(h.imePayment) : "Not reported"}
           sub="Medicare IME add-on / yr"
         />
       </div>
+
+      {h.medicaidProgram && (h.medicaidDgme != null || h.medicaidIme != null) ? (
+        <div className="hp-medicaid">
+          <div className="hp-medicaid-head">
+            {h.medicaidProgram} — Medicaid GME
+            {h.medicaidYear ? ` · academic year ${h.medicaidYear}` : ""}
+          </div>
+          <div className="hp-medicaid-figs">
+            <span>
+              Direct: <strong>{h.medicaidDgme != null ? currency(h.medicaidDgme) : "—"}</strong>
+            </span>
+            <span>
+              Indirect: <strong>{h.medicaidIme != null ? currency(h.medicaidIme) : "—"}</strong>
+            </span>
+            <span>
+              Total:{" "}
+              <strong>{currency((h.medicaidDgme ?? 0) + (h.medicaidIme ?? 0))}</strong>
+            </span>
+          </div>
+        </div>
+      ) : null}
 
       <div className="hp-secondary">
         {h.praPrimaryCare != null && (

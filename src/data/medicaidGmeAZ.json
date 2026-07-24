@@ -1,0 +1,183 @@
+{
+  "meta": {
+    "state": "AZ",
+    "program": "AHCCCS (Arizona Medicaid)",
+    "source": "AHCCCS Medicaid Graduate Medical Education Payments (payment-history workbook, Summary sheet)",
+    "sourceUrl": "https://www.azahcccs.gov/PlansProviders/Downloads/HospitalSupplements/GMEpayments.xlsx",
+    "academicYear": 2024,
+    "basis": "Academic year, July 1 – June 30. Figures are actual distributed Medicaid GME payments (Direct and Indirect).",
+    "fundingNote": "Summary totals include both the state General Fund share and the IGT/IGA-funded non-federal share, each matched with federal Medicaid dollars. Not an official AHCCCS determination; provided for modeling.",
+    "hospitalCount": 33
+  },
+  "byCcn": {
+    "030094": {
+      "ahcccsName": "abrazo arrowhead campus",
+      "medicaidDgme": 2959414,
+      "medicaidIme": 8545533
+    },
+    "030030": {
+      "ahcccsName": "abrazo central campus",
+      "medicaidDgme": 345768,
+      "medicaidIme": 2099979
+    },
+    "030110": {
+      "ahcccsName": "abrazo west campus",
+      "medicaidDgme": 2220342,
+      "medicaidIme": 6544057
+    },
+    "030088": {
+      "ahcccsName": "banner baywood",
+      "medicaidDgme": 567,
+      "medicaidIme": 6177
+    },
+    "034004": {
+      "ahcccsName": "banner behavioral health",
+      "medicaidDgme": 82019,
+      "medicaidIme": 1673568
+    },
+    "030061": {
+      "ahcccsName": "banner boswell",
+      "medicaidDgme": 35398,
+      "medicaidIme": 520611
+    },
+    "030016": {
+      "ahcccsName": "banner casa grande",
+      "medicaidDgme": 5643,
+      "medicaidIme": 31021
+    },
+    "030093": {
+      "ahcccsName": "banner del webb",
+      "medicaidDgme": 31569,
+      "medicaidIme": 121386
+    },
+    "030065": {
+      "ahcccsName": "banner desert",
+      "medicaidDgme": 373785,
+      "medicaidIme": 1635108
+    },
+    "030115": {
+      "ahcccsName": "banner estrella",
+      "medicaidDgme": 69128,
+      "medicaidIme": 303404
+    },
+    "030122": {
+      "ahcccsName": "banner gateway",
+      "medicaidDgme": 64896,
+      "medicaidIme": 557714
+    },
+    "030105": {
+      "ahcccsName": "banner heart hospital",
+      "medicaidDgme": 25394,
+      "medicaidIme": 269747
+    },
+    "030089": {
+      "ahcccsName": "banner thunderbird",
+      "medicaidDgme": 295605,
+      "medicaidIme": 740102
+    },
+    "030002": {
+      "ahcccsName": "banner - umc phoenix",
+      "medicaidDgme": 14701805,
+      "medicaidIme": 46919355
+    },
+    "030111": {
+      "ahcccsName": "banner - umc south",
+      "medicaidDgme": 4724760,
+      "medicaidIme": 13825871
+    },
+    "030064": {
+      "ahcccsName": "banner - umc tucson",
+      "medicaidDgme": 23095849,
+      "medicaidIme": 66921477
+    },
+    "030043": {
+      "ahcccsName": "canyon vista mc",
+      "medicaidDgme": 1121666,
+      "medicaidIme": 3406986
+    },
+    "030036": {
+      "ahcccsName": "dignity chandler regional",
+      "medicaidDgme": 631579,
+      "medicaidIme": 2461439
+    },
+    "030092": {
+      "ahcccsName": "honorhealth deer valley mc",
+      "medicaidDgme": 255147,
+      "medicaidIme": 913093
+    },
+    "030014": {
+      "ahcccsName": "john c lincoln",
+      "medicaidDgme": 621902,
+      "medicaidIme": 2266579
+    },
+    "030055": {
+      "ahcccsName": "kingman regional",
+      "medicaidDgme": 1296530,
+      "medicaidIme": 3857796
+    },
+    "030103": {
+      "ahcccsName": "mayo hospital",
+      "medicaidDgme": 2916988,
+      "medicaidIme": 17854258
+    },
+    "030119": {
+      "ahcccsName": "mercy gilbert",
+      "medicaidDgme": 332568,
+      "medicaidIme": 1281819
+    },
+    "030121": {
+      "ahcccsName": "mountain vista mc",
+      "medicaidDgme": 1563145,
+      "medicaidIme": 5976240
+    },
+    "033302": {
+      "ahcccsName": "phoenix children's",
+      "medicaidDgme": 23515859,
+      "medicaidIme": 42306838
+    },
+    "030038": {
+      "ahcccsName": "scottsdale hc osborn",
+      "medicaidDgme": 848040,
+      "medicaidIme": 4453519
+    },
+    "030087": {
+      "ahcccsName": "scottsdale hc shea",
+      "medicaidDgme": 544073,
+      "medicaidIme": 2887639
+    },
+    "030123": {
+      "ahcccsName": "scottsdale hc thompson peak",
+      "medicaidDgme": 462968,
+      "medicaidIme": 4735405
+    },
+    "030024": {
+      "ahcccsName": "st. joseph's phx",
+      "medicaidDgme": 13459921,
+      "medicaidIme": 34266190
+    },
+    "030006": {
+      "ahcccsName": "tucson mc",
+      "medicaidDgme": 4219139,
+      "medicaidIme": 9924934
+    },
+    "030022": {
+      "ahcccsName": "valleywise health mc",
+      "medicaidDgme": 29012172,
+      "medicaidIme": 49909199
+    },
+    "030007": {
+      "ahcccsName": "verde valley mc",
+      "medicaidDgme": 30728,
+      "medicaidIme": 133542
+    },
+    "030013": {
+      "ahcccsName": "yuma regional mc",
+      "medicaidDgme": 1574566,
+      "medicaidIme": 3497385
+    }
+  },
+  "unmatched": [
+    "banner payson",
+    "honorhealth rehab"
+  ]
+}

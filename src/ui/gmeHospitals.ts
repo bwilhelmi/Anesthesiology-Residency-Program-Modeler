@@ -9,6 +9,7 @@
  */
 
 import raw from "../data/gmeHospitals.json";
+import medicaidAZ from "../data/medicaidGmeAZ.json";
 
 export interface GmeHospital {
   /** CMS Certification Number (Medicare provider number), zero-padded to 6. */
@@ -39,6 +40,14 @@ export interface GmeHospital {
   praPrimaryCare: number | null;
   /** Per-Resident Amount, non-primary (Wksht E-4, line 18, col 2). */
   praNonPrimary: number | null;
+  /** State Medicaid Direct GME payment for the academic year, or null. */
+  medicaidDgme: number | null;
+  /** State Medicaid Indirect GME payment for the academic year, or null. */
+  medicaidIme: number | null;
+  /** Academic year of the Medicaid figures, or null. */
+  medicaidYear: number | null;
+  /** State Medicaid program name (e.g. "AHCCCS (Arizona Medicaid)"), or null. */
+  medicaidProgram: string | null;
 }
 
 export interface GmeDatasetMeta {
@@ -52,8 +61,43 @@ export interface GmeDatasetMeta {
 
 const dataset = raw as { meta: GmeDatasetMeta; hospitals: GmeHospital[] };
 
+/**
+ * State Medicaid GME sources, keyed by CCN. Each entry attaches state Medicaid
+ * Direct/Indirect GME payments onto the matching Medicare hospital record. Add a
+ * state by importing its `medicaidGme<ST>.json` and pushing it here.
+ */
+type MedicaidFile = {
+  meta: { program: string; academicYear: number };
+  byCcn: Record<string, { medicaidDgme: number; medicaidIme: number }>;
+};
+const MEDICAID_SOURCES: MedicaidFile[] = [medicaidAZ as MedicaidFile];
+
+const medicaidByCcn = new Map<
+  string,
+  { medicaidDgme: number; medicaidIme: number; medicaidYear: number; medicaidProgram: string }
+>();
+for (const src of MEDICAID_SOURCES) {
+  for (const [ccn, v] of Object.entries(src.byCcn)) {
+    medicaidByCcn.set(ccn, {
+      medicaidDgme: v.medicaidDgme,
+      medicaidIme: v.medicaidIme,
+      medicaidYear: src.meta.academicYear,
+      medicaidProgram: src.meta.program,
+    });
+  }
+}
+
 export const GME_META: GmeDatasetMeta = dataset.meta;
-export const GME_HOSPITALS: GmeHospital[] = dataset.hospitals;
+export const GME_HOSPITALS: GmeHospital[] = dataset.hospitals.map((h) => {
+  const m = medicaidByCcn.get(h.ccn);
+  return {
+    ...h,
+    medicaidDgme: m?.medicaidDgme ?? null,
+    medicaidIme: m?.medicaidIme ?? null,
+    medicaidYear: m?.medicaidYear ?? null,
+    medicaidProgram: m?.medicaidProgram ?? null,
+  };
+});
 
 /** Distinct two-letter state codes present, sorted. */
 export const GME_STATES: string[] = Array.from(
