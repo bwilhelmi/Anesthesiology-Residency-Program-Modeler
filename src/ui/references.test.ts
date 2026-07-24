@@ -22,7 +22,7 @@ describe("bibliography references", () => {
 
   it("every footnote number cited in the UI resolves to a reference", () => {
     // Numbers used by <Cite> across the pickers.
-    const citedInUi = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+    const citedInUi = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
     const known = new Set(REFERENCES.map((r) => r.n));
     for (const n of citedInUi) expect(known.has(n)).toBe(true);
   });

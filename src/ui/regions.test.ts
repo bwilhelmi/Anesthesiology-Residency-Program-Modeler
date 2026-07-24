@@ -16,12 +16,13 @@ describe("market premium calibration", () => {
     expect(nat!.anesthesiologist).toBeLessThan(470_000);
   });
 
-  it("keeps the CRNA premium modest (BLS CRNA mean is near market)", () => {
-    expect(MARKET_PREMIUM_DEFAULTS.crna).toBeLessThanOrEqual(0.15);
+  it("lands the CRNA default on the AANA ~$256k average total compensation", () => {
+    expect(MARKET_PREMIUM_DEFAULTS.crna).toBeLessThanOrEqual(0.06);
     const nat = regionSalaries("", MARKET_PREMIUM_DEFAULTS.anesthesiologist, MARKET_PREMIUM_DEFAULTS.crna);
-    // Should stay well under the anesthesiologist figure and near the BLS CRNA mean.
+    // BLS CRNA mean 248,320 * 1.03 = 255,770 — within a couple % of the AANA $256k.
+    expect(nat!.crna).toBeGreaterThan(252_000);
+    expect(nat!.crna).toBeLessThan(260_000);
     expect(nat!.crna).toBeLessThan(nat!.anesthesiologist);
-    expect(nat!.crna).toBeGreaterThan(SALARY_DATA.national.crna!);
   });
 
   it("applies role-specific premiums independently", () => {

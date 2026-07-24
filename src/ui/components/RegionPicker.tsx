@@ -57,15 +57,16 @@ export function RegionPicker({
       />
       <SliderField
         label="CRNA market premium"
-        help="Default +10%. The BLS CRNA mean is already close to market, so the gap is far smaller than for physicians; the physician benchmarks do not apply to CRNAs."
+        help="Default +3%. The BLS CRNA mean is already essentially at market: the AANA 2024 survey puts median CRNA salary at $251K and average total compensation near $256K, only a few percent above BLS. Raise this if staffing with locums."
         value={crnaPremium}
         onChange={setCrnaPremium}
         max={0.4}
         format={(v) => `+${percent(v)}`}
       />
       <p className="region-source">
-        Premium defaults calibrated to national benchmarks<Cite ns={[5, 11, 12]} />: BLS OEWS
-        employed means, Merritt Hawkins / AMN recruiting incentives, and Doximity compensation.
+        Premium defaults calibrated to national benchmarks<Cite ns={[5, 11, 12, 13]} />: BLS OEWS
+        employed means, Merritt Hawkins / AMN recruiting incentives, Doximity compensation, and
+        the AANA CRNA compensation survey.
       </p>
 
       {preview ? (

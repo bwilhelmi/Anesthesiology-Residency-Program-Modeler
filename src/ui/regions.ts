@@ -43,14 +43,16 @@ export const IS_PLACEHOLDER = SALARY_DATA.generatedAt === "seed";
  *   separately). +25% anchors the base salary to the Merritt Hawkins figure, with
  *   Doximity as the upper bound.  [refs 5, 11, 12]
  *
- *   CRNA (+10%): the BLS OEWS CRNA mean ($248,320) is already close to market, so
- *   the gap is far smaller than for physicians; +10% reflects recruiting/locum
- *   rates running modestly above the employed mean. The physician anchors above do
- *   not apply to CRNAs.
+ *   CRNA (+3%): the BLS OEWS CRNA mean ($248,320) is already essentially at market.
+ *   The AANA 2024 Compensation and Benefits Survey reports a median CRNA salary of
+ *   $251,000 and average total (cash) compensation near $256,000 — only ~1–3% above
+ *   the BLS mean. +3% lands at ~$255,770, on the AANA average. The physician anchors
+ *   above do not apply to CRNAs; users staffing with locums (paid well above the
+ *   employed mean) can raise this slider.  [refs 5, 13]
  */
 export const MARKET_PREMIUM_DEFAULTS = {
   anesthesiologist: 0.25,
-  crna: 0.1,
+  crna: 0.03,
 } as const;
 
 /** The 50 states + DC, in display order. Always shown, even if data is sparse. */
