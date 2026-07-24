@@ -1,0 +1,50 @@
+{
+  "meta": {
+    "state": "UT",
+    "program": "Utah Medicaid (Direct GME, State Plan Attachment 4.19-A)",
+    "academicYear": 2024,
+    "split": false,
+    "directOnly": true,
+    "note": "Utah Direct GME quarterly supplemental payments (SFY2024). Utah added a managed-care indirect (IME) payment effective July 2024, which is not included here.",
+    "source": "Utah DHHS — Medicaid Inpatient Hospital GME Calculation, SFY2024",
+    "sourceUrl": "https://medicaid.utah.gov/stplan/inpatientgme/",
+    "hospitalCount": 8
+  },
+  "byCcn": {
+    "460001": {
+      "name": "UTAH VALLEY REG MED CNTR",
+      "medicaidDgme": 175908
+    },
+    "460003": {
+      "name": "SALT LAKE REG MED CNTR",
+      "medicaidDgme": 7193
+    },
+    "460004": {
+      "name": "MCKAY DEE HOSPITAL",
+      "medicaidDgme": 128171
+    },
+    "460006": {
+      "name": "LDS HOSPITAL",
+      "medicaidDgme": 13733
+    },
+    "460009": {
+      "name": "UNIVERSITY OF UTAH HOSP",
+      "medicaidDgme": 4868536
+    },
+    "460010": {
+      "name": "INTERMOUNTAIN MEDICAL CENTER",
+      "medicaidDgme": 538187
+    },
+    "460047": {
+      "name": "ST MARKS HOSPITAL",
+      "medicaidDgme": 36620
+    },
+    "463301": {
+      "name": "PRIMARY CHILDRENS MED CNTR",
+      "medicaidDgme": 737637
+    }
+  },
+  "unmatched": [
+    "UNIVERSITY HOSPITAL PSYCH"
+  ]
+}

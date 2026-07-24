@@ -84,10 +84,44 @@ describe("GME hospital dataset", () => {
     expect(tucson?.medicaidIme).toBe(66921477);
   });
 
+  it("ingests Florida SMRP as a direct-only per-hospital figure", () => {
+    // AdventHealth Orlando, SMRP SFY2023-24 Final Reconciled Distribution.
+    const orlando = hospitalByCcn("100007");
+    expect(orlando?.name).toContain("ADVENTHEALTH ORLANDO");
+    expect(orlando?.medicaidProgram).toContain("SMRP");
+    expect(orlando?.medicaidDgme).toBe(5815642);
+    expect(orlando?.medicaidIme).toBeNull(); // FL IME program not ingested
+    expect(orlando?.medicaidTotal).toBe(5815642);
+  });
+
+  it("ingests New Jersey as a combined total (no direct/indirect split)", () => {
+    const uh = hospitalByCcn("310119"); // University Hospital, Newark
+    expect(uh?.medicaidProgram).toContain("NJ DOH");
+    expect(uh?.medicaidDgme).toBeNull();
+    expect(uh?.medicaidIme).toBeNull();
+    expect(uh?.medicaidTotal).toBe(33938396);
+  });
+
+  it("ingests Utah as direct-only per-hospital figures", () => {
+    const utah = hospitalByCcn("460009"); // University of Utah Hospitals & Clinics
+    expect(utah?.medicaidProgram).toContain("Utah Medicaid");
+    expect(utah?.medicaidDgme).toBe(4868536);
+    expect(utah?.medicaidIme).toBeNull();
+    expect(utah?.medicaidTotal).toBe(4868536);
+  });
+
+  it("ingests Minnesota MERC as a combined total", () => {
+    const hcmc = hospitalByCcn("240004"); // Hennepin County Medical Center
+    expect(hcmc?.medicaidProgram).toContain("MERC");
+    expect(hcmc?.medicaidDgme).toBeNull();
+    expect(hcmc?.medicaidTotal).toBe(7829964);
+  });
+
   it("leaves Medicaid figures null where no state data maps (e.g. out of state)", () => {
-    const mgh = hospitalByCcn("220071"); // Massachusetts — no AZ Medicaid data
+    const mgh = hospitalByCcn("220071"); // Massachusetts — no per-hospital Medicaid data
     expect(mgh?.medicaidDgme).toBeNull();
     expect(mgh?.medicaidIme).toBeNull();
+    expect(mgh?.medicaidTotal).toBeNull();
     expect(mgh?.medicaidProgram).toBeNull();
   });
 

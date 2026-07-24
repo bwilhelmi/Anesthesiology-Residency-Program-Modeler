@@ -1,0 +1,342 @@
+{
+  "meta": {
+    "state": "FL",
+    "program": "Florida Medicaid (Statewide Medicaid Residency Program, SMRP)",
+    "academicYear": 2024,
+    "split": false,
+    "directOnly": true,
+    "note": "SMRP is Florida's direct, resident-FTE-based Medicaid GME program (Final Reconciled Distribution, SFY2023-24). Florida's separate Medicaid Indirect Medical Education (IME) program is not included here, so the indirect figure is not shown.",
+    "source": "Florida AHCA — SFY2023-24 Statewide Medicaid Residency Program Reconciliation",
+    "sourceUrl": "https://ahca.myflorida.com/file/medicaid/SFY%2023-24%20SMRP%20Reconciliation%20Calculation.pdf",
+    "hospitalCount": 81
+  },
+  "byCcn": {
+    "100001": {
+      "name": "Shands Jacksonville Medical Center DBA UF Health Jacksonville",
+      "medicaidDgme": 7181361
+    },
+    "100002": {
+      "name": "Bethesda Hospital East",
+      "medicaidDgme": 1197032
+    },
+    "100006": {
+      "name": "Orlando Health",
+      "medicaidDgme": 7834359
+    },
+    "100007": {
+      "name": "AdventHealth Orlando",
+      "medicaidDgme": 5815642
+    },
+    "100012": {
+      "name": "Lee Memorial Hospital",
+      "medicaidDgme": 1152185
+    },
+    "100017": {
+      "name": "Halifax Hospital Medical Center",
+      "medicaidDgme": 746683
+    },
+    "100018": {
+      "name": "Naples Community Hospital",
+      "medicaidDgme": 1549325
+    },
+    "100022": {
+      "name": "Jackson Health System",
+      "medicaidDgme": 17608876
+    },
+    "100023": {
+      "name": "HCA Florida Citrus Hospital",
+      "medicaidDgme": 1816006
+    },
+    "100025": {
+      "name": "Ascension-Sacred Heart Health System",
+      "medicaidDgme": 1519653
+    },
+    "100032": {
+      "name": "Bayfront Health St. Petersburg",
+      "medicaidDgme": 1044095
+    },
+    "100034": {
+      "name": "Mount Sinai Medical Center",
+      "medicaidDgme": 4494829
+    },
+    "100035": {
+      "name": "Manatee Memorial Hospital",
+      "medicaidDgme": 1086180
+    },
+    "100038": {
+      "name": "Memorial Regional Hospital",
+      "medicaidDgme": 2324333
+    },
+    "100039": {
+      "name": "Broward Health Medical Center",
+      "medicaidDgme": 3873389
+    },
+    "100040": {
+      "name": "Ascension St. Vincent's Riverside",
+      "medicaidDgme": 664554
+    },
+    "100050": {
+      "name": "Larkin Community Hospital Palm Springs Campus LLC",
+      "medicaidDgme": 2975700
+    },
+    "100052": {
+      "name": "Winter Haven Hospital",
+      "medicaidDgme": 676995
+    },
+    "100063": {
+      "name": "Morton Plant North Bay Hospital",
+      "medicaidDgme": 314711
+    },
+    "100069": {
+      "name": "AdventHealth Carrollwood",
+      "medicaidDgme": 59771
+    },
+    "100073": {
+      "name": "Holy Cross Hospital",
+      "medicaidDgme": 1947831
+    },
+    "100075": {
+      "name": "St. Joseph's Hospital",
+      "medicaidDgme": 1156375
+    },
+    "100079": {
+      "name": "University of Miami Hospital & Clinics",
+      "medicaidDgme": 5821970
+    },
+    "100080": {
+      "name": "HCA Florida JFK Hopsital",
+      "medicaidDgme": 1785019
+    },
+    "100086": {
+      "name": "Broward Health North",
+      "medicaidDgme": 2379165
+    },
+    "100087": {
+      "name": "Sarasota Memorial Hospital",
+      "medicaidDgme": 1763969
+    },
+    "100088": {
+      "name": "Baptist Medical Center",
+      "medicaidDgme": 1774418
+    },
+    "100109": {
+      "name": "AdventHealth Sebring",
+      "medicaidDgme": 824643
+    },
+    "100110": {
+      "name": "HCA Florida Osceola Hospital",
+      "medicaidDgme": 3134728
+    },
+    "100113": {
+      "name": "UF Health Shands",
+      "medicaidDgme": 15785031
+    },
+    "100127": {
+      "name": "Morton Plant Hospital",
+      "medicaidDgme": 702972
+    },
+    "100128": {
+      "name": "Tampa General Hospital",
+      "medicaidDgme": 8054180
+    },
+    "100130": {
+      "name": "Lakeside Medical Center",
+      "medicaidDgme": 268901
+    },
+    "100131": {
+      "name": "HCA Florida Aventura Hospital",
+      "medicaidDgme": 3686195
+    },
+    "100135": {
+      "name": "Tallahassee Memorial Healthcare",
+      "medicaidDgme": 1689690
+    },
+    "100151": {
+      "name": "Mayo Clinic Florida",
+      "medicaidDgme": 4111061
+    },
+    "100157": {
+      "name": "Lakeland Regional Medical Center",
+      "medicaidDgme": 1774448
+    },
+    "100167": {
+      "name": "HCA Florida Mercy Hospital",
+      "medicaidDgme": 145387
+    },
+    "100168": {
+      "name": "Boca Raton Regional Hospital",
+      "medicaidDgme": 1633614
+    },
+    "100173": {
+      "name": "AdventHealth Tampa",
+      "medicaidDgme": 564171
+    },
+    "100179": {
+      "name": "HCA Florida Memorial Hospital",
+      "medicaidDgme": 280102
+    },
+    "100180": {
+      "name": "HCA Florida St Petersburg Hospital",
+      "medicaidDgme": 804765
+    },
+    "100181": {
+      "name": "Larkin Community Hospital Inc.",
+      "medicaidDgme": 4794984
+    },
+    "100187": {
+      "name": "Palmetto General Hospital",
+      "medicaidDgme": 1867012
+    },
+    "100189": {
+      "name": "HCA Florida Northwest Hospital",
+      "medicaidDgme": 1126563
+    },
+    "100191": {
+      "name": "HCA Florida Trinity Hospital",
+      "medicaidDgme": 2031471
+    },
+    "100200": {
+      "name": "Broward Health Imperial Point",
+      "medicaidDgme": 333204
+    },
+    "100204": {
+      "name": "HCA Florida North Florida Hospital",
+      "medicaidDgme": 4043373
+    },
+    "100209": {
+      "name": "HCA Florida Kendall Hospital",
+      "medicaidDgme": 3446162
+    },
+    "100212": {
+      "name": "HCA Florida Ocala Hospital",
+      "medicaidDgme": 3302149
+    },
+    "100213": {
+      "name": "HCA Florida Blake Hospital",
+      "medicaidDgme": 2101944
+    },
+    "100224": {
+      "name": "HCA Florida Woodmont Hospital",
+      "medicaidDgme": 555024
+    },
+    "100226": {
+      "name": "HCA Florida Orange Park Hospital",
+      "medicaidDgme": 3253935
+    },
+    "100228": {
+      "name": "HCA Florida Westside Hospital",
+      "medicaidDgme": 1627125
+    },
+    "100231": {
+      "name": "HCA Florida West Hospital",
+      "medicaidDgme": 464707
+    },
+    "100236": {
+      "name": "HCA Florida Fawcett Hospital",
+      "medicaidDgme": 1656
+    },
+    "100238": {
+      "name": "HCA Florida Northside Hospital",
+      "medicaidDgme": 760077
+    },
+    "100243": {
+      "name": "HCA Florida Brandon Hospital",
+      "medicaidDgme": 3642674
+    },
+    "100244": {
+      "name": "Cape Coral Hospital",
+      "medicaidDgme": 732916
+    },
+    "100246": {
+      "name": "HCA Florida Lawnwood Hospital",
+      "medicaidDgme": 759230
+    },
+    "100248": {
+      "name": "HCA Florida Largo Hospital",
+      "medicaidDgme": 2716499
+    },
+    "100254": {
+      "name": "HCA Florida Capital Hospital",
+      "medicaidDgme": 249038
+    },
+    "100256": {
+      "name": "HCA Florida Bayonet Point Hospital",
+      "medicaidDgme": 2606779
+    },
+    "100258": {
+      "name": "Delray Medical Center",
+      "medicaidDgme": 759822
+    },
+    "100260": {
+      "name": "HCA Florida St. Lucie Hospital",
+      "medicaidDgme": 689790
+    },
+    "100264": {
+      "name": "HCA Florida Oak Hill Hospital",
+      "medicaidDgme": 3163592
+    },
+    "100268": {
+      "name": "West Boca Medical Center",
+      "medicaidDgme": 85767
+    },
+    "100269": {
+      "name": "HCA Florida Palms West Hospital",
+      "medicaidDgme": 652335
+    },
+    "100271": {
+      "name": "Moffitt Cancer Center",
+      "medicaidDgme": 3125575
+    },
+    "100275": {
+      "name": "Wellington Regional Medical Center",
+      "medicaidDgme": 599082
+    },
+    "100276": {
+      "name": "Broward Health Coral Springs",
+      "medicaidDgme": 213534
+    },
+    "100281": {
+      "name": "Memorial Hospital West",
+      "medicaidDgme": 2867322
+    },
+    "100284": {
+      "name": "Westchester General Hospital (DBA Keralty Hospital)",
+      "medicaidDgme": 413719
+    },
+    "100288": {
+      "name": "St. Mary's Medical Center",
+      "medicaidDgme": 635136
+    },
+    "100289": {
+      "name": "Cleveland Clinic Hospital-Weston",
+      "medicaidDgme": 2833848
+    },
+    "100296": {
+      "name": "Doctors Hospital",
+      "medicaidDgme": 38167
+    },
+    "100314": {
+      "name": "West Kendall Baptist Hospital",
+      "medicaidDgme": 328991
+    },
+    "103300": {
+      "name": "Johns Hopkins All Childrens Hospital",
+      "medicaidDgme": 2574286
+    },
+    "103301": {
+      "name": "Nicklaus Children's Hospital",
+      "medicaidDgme": 4660383
+    },
+    "103304": {
+      "name": "Nemours Children's Hospital",
+      "medicaidDgme": 1908302
+    },
+    "104049": {
+      "name": "Southern Winds Hospital",
+      "medicaidDgme": 308575
+    }
+  },
+  "unmatched": [
+    "Community Health of South Florida"
+  ]
+}

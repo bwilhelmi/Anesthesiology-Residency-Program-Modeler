@@ -75,8 +75,60 @@ per state and merged onto the Medicare records by CCN.
   many hospitals the Medicaid GME dwarfs the Medicare figure (e.g. Banner–UMC
   Tucson: $90.0M Medicaid vs ~$26M Medicare).
 
+### Florida — AHCA (SMRP), direct only
+
+- **Source:** Florida AHCA Statewide Medicaid Residency Program (SMRP) SFY2023-24
+  Reconciliation, `data/gme/fl-source/SMRP_SFY23-24_Reconciliation.pdf`.
+- SMRP is Florida's **direct**, resident-FTE-based Medicaid GME program. The build
+  (`node scripts/build-medicaid-fl.mjs`, needs `pdftotext`) extracts each hospital's
+  Final Reconciled Distribution as `medicaidDgme`, validated by requiring the
+  matched+unmatched sum to equal the published SMRP total (**$190,301,308**).
+  Florida's separate Medicaid **IME** program is not per-hospital ingested, so the
+  indirect figure is left null and the note says so. 81 of 92 hospitals matched.
+
+### New Jersey — DOH GME Subsidy, combined
+
+- **Source:** NJ DOH Health Care Subsidy Fund SFY2025 GME Subsidy Allocations,
+  `data/gme/nj-source/SFY2025_GME_Subsidy_Allocation.pdf`.
+- NJ publishes a **single combined** GME subsidy per hospital (not split), stored as
+  `medicaidTotal`. `node scripts/build-medicaid-nj.mjs` (needs `pdftotext`) matches
+  to CCN and validates the total to **$218,000,000**. 42 of 44 matched; the
+  consolidated "Jefferson Hospitals" entry and out-of-set Inspira Elmer are reported
+  as unmatched.
+
+Both use exact normalized name matching plus an explicit override map, and the
+small source PDFs are committed for reproducibility.
+
+### Utah — Direct GME, and Minnesota — MERC (combined)
+
+- **Utah** (`node scripts/build-medicaid-ut.mjs`): parses the SFY2024 GME Calculation
+  workbook (`data/gme/ut-source/`), storing each hospital's Total Amt as
+  `medicaidDgme` (direct). Validated to the published $6,539,336. 8 hospitals; the
+  University Neuropsychiatric ("psych") line is kept unmatched to avoid colliding
+  with the University of Utah Hospital figure.
+- **Minnesota** (`node scripts/build-medicaid-mn.mjs`): parses the MERC 2025
+  Distribution Report (`data/gme/mn-source/`) for hospital recipients only, storing
+  the combined MERC award as `medicaidTotal`. Non-hospital MERC recipients
+  (universities, the academic health center) are excluded so they are not
+  misattributed. 11 hospitals (Hennepin $7.83M, Mayo $5.67M, …).
+
+### Published per-hospital data NOT ingested (honest gaps)
+
+Three states publish per-hospital data that could not be safely ingested here; each
+keeps a state profile with a direct link so the figure is still findable:
+
+- **Maine** — the per-hospital figure is a per-**discharge** add-on RATE (e.g.
+  $1,082/discharge), not an annual dollar total; not convertible without discharge
+  counts, so ingesting it as a dollar figure would mislead.
+- **Michigan** — the GME Distribution spreadsheet is served behind a bot-blocking
+  MDHHS page (403/302); the file could not be retrieved from this environment.
+- **Nevada** — GME is one column in a sparse, multi-column table inside a 3,000-line
+  statutory-report PDF; automated extraction misaligns (county subtotals bleed into
+  hospital rows), so it is not ingested rather than risk misattribution.
+
 To add another state's **per-hospital** data, produce a `medicaidGme<ST>.json` in
-the same `{meta, byCcn}` shape and push it into `MEDICAID_SOURCES` in
+the same `{meta, byCcn}` shape (entries may carry `medicaidDgme`, `medicaidIme`,
+and/or `medicaidTotal`) and push it into `MEDICAID_SOURCES` in
 `src/ui/gmeHospitals.ts`.
 
 ### All-state Medicaid GME funding profiles

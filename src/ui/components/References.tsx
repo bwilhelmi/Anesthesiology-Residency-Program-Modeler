@@ -55,6 +55,31 @@ export const REFERENCES: Reference[] = [
     note: "The federal formulas the model uses to estimate marginal Medicare IME and DGME revenue from added residents.",
     url: "https://www.cms.gov/medicare/payment/prospective-payment-systems/acute-inpatient-pps/indirect-medical-education-ime",
   },
+  {
+    n: 7,
+    label:
+      "Florida AHCA — Statewide Medicaid Residency Program (SMRP) SFY2023-24 Reconciliation",
+    note: "Florida per-hospital direct (resident-based) Medicaid GME allocations. Florida's separate Medicaid IME program is not included.",
+    url: "https://ahca.myflorida.com/file/medicaid/SFY%2023-24%20SMRP%20Reconciliation%20Calculation.pdf",
+  },
+  {
+    n: 8,
+    label: "New Jersey Department of Health — SFY2025 Graduate Medical Education (GME) Subsidy Allocations",
+    note: "New Jersey per-hospital Medicaid GME subsidy (a single combined amount, not split into direct/indirect).",
+    url: "https://www.nj.gov/health/hcf/documents/charitycare/SFY2025_GME_Subsidy_Allocation.pdf",
+  },
+  {
+    n: 9,
+    label: "Utah DHHS — Medicaid Inpatient Hospital GME Calculation (SFY2024)",
+    note: "Utah per-hospital direct GME supplemental payments.",
+    url: "https://medicaid.utah.gov/stplan/inpatientgme/",
+  },
+  {
+    n: 10,
+    label: "Minnesota Department of Health — MERC Distribution Annual Report 2025",
+    note: "Minnesota per-hospital MERC (Medical Education & Research Costs) awards; combined, not split into direct/indirect.",
+    url: "https://www.health.state.mn.us/facilities/ruralhealth/merc/docs/distribution25.pdf",
+  },
 ];
 
 /** Superscript footnote marker(s) linking to the bibliography, e.g. <Cite ns={[1,2]} />. */

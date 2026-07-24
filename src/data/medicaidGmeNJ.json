@@ -1,0 +1,186 @@
+{
+  "meta": {
+    "state": "NJ",
+    "program": "NJ DOH Health Care Subsidy Fund (GME Subsidy)",
+    "academicYear": 2025,
+    "split": false,
+    "note": "Single combined GME subsidy per hospital (not separately reported as direct vs indirect). Financed through the state Health Care Subsidy Fund and paid via Medicaid managed care.",
+    "source": "NJ Department of Health — SFY2025 Graduate Medical Education (GME) Subsidy Allocations",
+    "sourceUrl": "https://www.nj.gov/health/hcf/documents/charitycare/SFY2025_GME_Subsidy_Allocation.pdf",
+    "hospitalCount": 42
+  },
+  "byCcn": {
+    "310001": {
+      "name": "Hackensack University Medical Center",
+      "medicaidTotal": 9708289
+    },
+    "310002": {
+      "name": "Newark Beth Israel Medical Center",
+      "medicaidTotal": 16675194
+    },
+    "310003": {
+      "name": "Hackensack UMC- Palisades",
+      "medicaidTotal": 2575586
+    },
+    "310005": {
+      "name": "Hunterdon Medical Center",
+      "medicaidTotal": 331314
+    },
+    "310006": {
+      "name": "St. Mary's General Hospital",
+      "medicaidTotal": 1823435
+    },
+    "310010": {
+      "name": "Penn Medicine Princeton Medical Center",
+      "medicaidTotal": 464197
+    },
+    "310014": {
+      "name": "Cooper Hospital/University MC",
+      "medicaidTotal": 33725142
+    },
+    "310015": {
+      "name": "Morristown Medical Center",
+      "medicaidTotal": 4522088
+    },
+    "310016": {
+      "name": "CarePoint Health - Christ Hospital",
+      "medicaidTotal": 808812
+    },
+    "310019": {
+      "name": "St. Joseph's University Medical Center",
+      "medicaidTotal": 14308227
+    },
+    "310022": {
+      "name": "Virtua - West Jersey Health System",
+      "medicaidTotal": 913287
+    },
+    "310025": {
+      "name": "CarePoint Health - Bayonne Medical Center",
+      "medicaidTotal": 1045190
+    },
+    "310027": {
+      "name": "Trinitas Regional Medical Center",
+      "medicaidTotal": 2284322
+    },
+    "310029": {
+      "name": "Virtua Our Lady of Lourdes Hospital",
+      "medicaidTotal": 2220241
+    },
+    "310031": {
+      "name": "Deborah Heart and Lung Center",
+      "medicaidTotal": 900676
+    },
+    "310032": {
+      "name": "Inspira Medical Center - Vineland",
+      "medicaidTotal": 8232160
+    },
+    "310038": {
+      "name": "Robert Wood Johnson University Hospital",
+      "medicaidTotal": 14190887
+    },
+    "310039": {
+      "name": "Raritan Bay Medical Center",
+      "medicaidTotal": 1139850
+    },
+    "310040": {
+      "name": "CarePoint Health - Hoboken University Medical Center",
+      "medicaidTotal": 1925741
+    },
+    "310041": {
+      "name": "Community Medical Center",
+      "medicaidTotal": 799043
+    },
+    "310044": {
+      "name": "Capital Health Medical Center - Hopewell",
+      "medicaidTotal": 1487707
+    },
+    "310045": {
+      "name": "Englewood Hospital and Medical Center",
+      "medicaidTotal": 1730034
+    },
+    "310048": {
+      "name": "RWJ University Hospital - Somerset",
+      "medicaidTotal": 468098
+    },
+    "310050": {
+      "name": "St. Clare's Hospital - Denville",
+      "medicaidTotal": 1093920
+    },
+    "310051": {
+      "name": "Overlook Medical Center",
+      "medicaidTotal": 1969919
+    },
+    "310052": {
+      "name": "Ocean Medical Center",
+      "medicaidTotal": 1726854
+    },
+    "310054": {
+      "name": "Hackensack University MC - Mountainside",
+      "medicaidTotal": 1813548
+    },
+    "310057": {
+      "name": "Virtua-Mem. Hospital of Burlington County",
+      "medicaidTotal": 484911
+    },
+    "310058": {
+      "name": "New Bridge Medical Center",
+      "medicaidTotal": 1495332
+    },
+    "310060": {
+      "name": "St. Luke's Warren Hospital",
+      "medicaidTotal": 498489
+    },
+    "310061": {
+      "name": "Virtua Willingboro Hospital (Lourdes MC of Burlington)",
+      "medicaidTotal": 59008
+    },
+    "310064": {
+      "name": "Atlanticare Regional Medical Center",
+      "medicaidTotal": 3749400
+    },
+    "310070": {
+      "name": "St. Peter's University Hospital",
+      "medicaidTotal": 5505003
+    },
+    "310073": {
+      "name": "Jersey Shore University Medical Center",
+      "medicaidTotal": 6651737
+    },
+    "310074": {
+      "name": "Jersey City Medical Center",
+      "medicaidTotal": 5897790
+    },
+    "310075": {
+      "name": "Monmouth Medical Center",
+      "medicaidTotal": 6619751
+    },
+    "310076": {
+      "name": "St. Barnabas Medical Center",
+      "medicaidTotal": 6529876
+    },
+    "310092": {
+      "name": "Capital Health Regional Medical Center",
+      "medicaidTotal": 4582967
+    },
+    "310096": {
+      "name": "St. Michael's Medical Center",
+      "medicaidTotal": 4350051
+    },
+    "310108": {
+      "name": "JFK Medical Center/A M Yelencsics",
+      "medicaidTotal": 1544515
+    },
+    "310111": {
+      "name": "CentraState Medical Center",
+      "medicaidTotal": 341025
+    },
+    "310119": {
+      "name": "University Hospital",
+      "medicaidTotal": 33938396
+    }
+  },
+  "unmatched": [
+    "Inspira Medical Center - Elmer",
+    "Jefferson Hospitals"
+  ]
+}

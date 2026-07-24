@@ -1,0 +1,59 @@
+{
+  "meta": {
+    "state": "MN",
+    "program": "Minnesota MERC (Medical Education & Research Costs)",
+    "academicYear": 2025,
+    "split": false,
+    "note": "Total MERC award per hospital (SFY2025); MERC does not separate direct from indirect. Non-hospital MERC recipients (universities, the academic health center) are excluded.",
+    "source": "Minnesota Dept. of Health — MERC Distribution Annual Report 2025",
+    "sourceUrl": "https://www.health.state.mn.us/facilities/ruralhealth/merc/docs/distribution25.pdf",
+    "hospitalCount": 11
+  },
+  "byCcn": {
+    "240001": {
+      "name": "North Memorial Medical Center",
+      "medicaidTotal": 233795
+    },
+    "240004": {
+      "name": "Hennepin County Medical Center",
+      "medicaidTotal": 7829964
+    },
+    "240010": {
+      "name": "Mayo Clinic",
+      "medicaidTotal": 5672368
+    },
+    "240036": {
+      "name": "St. Cloud Hospital",
+      "medicaidTotal": 74251
+    },
+    "240038": {
+      "name": "United Hospital",
+      "medicaidTotal": 1633510
+    },
+    "240047": {
+      "name": "St. Luke's Hospital",
+      "medicaidTotal": 80408
+    },
+    "240057": {
+      "name": "Abbott Northwestern Hospital",
+      "medicaidTotal": 1619363
+    },
+    "240080": {
+      "name": "University of Minnesota Medical",
+      "medicaidTotal": 1922906
+    },
+    "240106": {
+      "name": "Regions Hospital",
+      "medicaidTotal": 2169015
+    },
+    "240115": {
+      "name": "Mercy Hospital",
+      "medicaidTotal": 882082
+    },
+    "243302": {
+      "name": "Children's Minnesota",
+      "medicaidTotal": 143877
+    }
+  },
+  "unmatched": []
+}

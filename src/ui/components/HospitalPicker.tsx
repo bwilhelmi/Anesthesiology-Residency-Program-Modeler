@@ -10,6 +10,9 @@ import {
 import { currency, number } from "../format";
 import { Cite } from "./References";
 
+/** Which bibliography reference backs each state's per-hospital Medicaid figures. */
+const MEDICAID_CITE: Record<string, number> = { AZ: 3, FL: 7, NJ: 8, UT: 9, MN: 10 };
+
 /**
  * Lets the user find their hospital and see its real Medicare GME position —
  * resident FTE cap (and unused "cap space"), Direct GME (DGME) payment, and
@@ -177,25 +180,29 @@ function HospitalDetail({
         />
       </div>
 
-      {h.medicaidProgram && (h.medicaidDgme != null || h.medicaidIme != null) ? (
+      {h.medicaidProgram && h.medicaidTotal != null ? (
         <div className="hp-medicaid">
           <div className="hp-medicaid-head">
             {h.medicaidProgram} — Medicaid GME
-            {h.medicaidYear ? ` · academic year ${h.medicaidYear}` : ""}
-            <Cite ns={[3]} />
+            {h.medicaidYear ? ` · ${h.medicaidYear}` : ""}
+            <Cite ns={[MEDICAID_CITE[h.state] ?? 3]} />
           </div>
           <div className="hp-medicaid-figs">
+            {h.medicaidDgme != null && (
+              <span>
+                Direct: <strong>{currency(h.medicaidDgme)}</strong>
+              </span>
+            )}
+            {h.medicaidIme != null && (
+              <span>
+                Indirect: <strong>{currency(h.medicaidIme)}</strong>
+              </span>
+            )}
             <span>
-              Direct: <strong>{h.medicaidDgme != null ? currency(h.medicaidDgme) : "—"}</strong>
-            </span>
-            <span>
-              Indirect: <strong>{h.medicaidIme != null ? currency(h.medicaidIme) : "—"}</strong>
-            </span>
-            <span>
-              Total:{" "}
-              <strong>{currency((h.medicaidDgme ?? 0) + (h.medicaidIme ?? 0))}</strong>
+              Total: <strong>{currency(h.medicaidTotal)}</strong>
             </span>
           </div>
+          {h.medicaidNote ? <div className="hp-medicaid-note">{h.medicaidNote}</div> : null}
         </div>
       ) : (
         <MedicaidStatePanel state={h.state} />

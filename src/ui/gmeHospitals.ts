@@ -10,6 +10,10 @@
 
 import raw from "../data/gmeHospitals.json";
 import medicaidAZ from "../data/medicaidGmeAZ.json";
+import medicaidFL from "../data/medicaidGmeFL.json";
+import medicaidNJ from "../data/medicaidGmeNJ.json";
+import medicaidUT from "../data/medicaidGmeUT.json";
+import medicaidMN from "../data/medicaidGmeMN.json";
 import stateProfiles from "../data/medicaidStateProfiles.json";
 
 export interface GmeHospital {
@@ -45,10 +49,16 @@ export interface GmeHospital {
   medicaidDgme: number | null;
   /** State Medicaid Indirect GME payment for the academic year, or null. */
   medicaidIme: number | null;
+  /** State Medicaid total GME payment (split sum, or a combined published figure), or null. */
+  medicaidTotal: number | null;
   /** Academic year of the Medicaid figures, or null. */
   medicaidYear: number | null;
   /** State Medicaid program name (e.g. "AHCCCS (Arizona Medicaid)"), or null. */
   medicaidProgram: string | null;
+  /** What the Medicaid figure represents (e.g. combined, or direct-only), or null. */
+  medicaidNote: string | null;
+  /** Link to the state's per-hospital Medicaid GME source, or null. */
+  medicaidSourceUrl: string | null;
 }
 
 export interface GmeDatasetMeta {
@@ -63,27 +73,48 @@ export interface GmeDatasetMeta {
 const dataset = raw as { meta: GmeDatasetMeta; hospitals: GmeHospital[] };
 
 /**
- * State Medicaid GME sources, keyed by CCN. Each entry attaches state Medicaid
- * Direct/Indirect GME payments onto the matching Medicare hospital record. Add a
- * state by importing its `medicaidGme<ST>.json` and pushing it here.
+ * State Medicaid GME sources, keyed by CCN. Each entry attaches state Medicaid GME
+ * payments onto the matching Medicare hospital record. States differ in what they
+ * publish: AZ splits direct/indirect, FL publishes its direct (SMRP) program only,
+ * NJ publishes a single combined total. A per-hospital entry may therefore carry
+ * any of medicaidDgme / medicaidIme / medicaidTotal; the total is derived when a
+ * source gives only a split. Add a state by importing its `medicaidGme<ST>.json`
+ * and pushing it here.
  */
+type MedicaidEntry = { medicaidDgme?: number; medicaidIme?: number; medicaidTotal?: number };
 type MedicaidFile = {
-  meta: { program: string; academicYear: number };
-  byCcn: Record<string, { medicaidDgme: number; medicaidIme: number }>;
+  meta: { program: string; academicYear: number; note?: string; sourceUrl?: string };
+  byCcn: Record<string, MedicaidEntry>;
 };
-const MEDICAID_SOURCES: MedicaidFile[] = [medicaidAZ as MedicaidFile];
+const MEDICAID_SOURCES: MedicaidFile[] = [
+  medicaidAZ as MedicaidFile,
+  medicaidFL as MedicaidFile,
+  medicaidNJ as MedicaidFile,
+  medicaidUT as MedicaidFile,
+  medicaidMN as MedicaidFile,
+];
 
-const medicaidByCcn = new Map<
-  string,
-  { medicaidDgme: number; medicaidIme: number; medicaidYear: number; medicaidProgram: string }
->();
+type MergedMedicaid = {
+  medicaidDgme: number | null;
+  medicaidIme: number | null;
+  medicaidTotal: number;
+  medicaidYear: number;
+  medicaidProgram: string;
+  medicaidNote: string | null;
+  medicaidSourceUrl: string | null;
+};
+const medicaidByCcn = new Map<string, MergedMedicaid>();
 for (const src of MEDICAID_SOURCES) {
   for (const [ccn, v] of Object.entries(src.byCcn)) {
+    const total = v.medicaidTotal ?? (v.medicaidDgme ?? 0) + (v.medicaidIme ?? 0);
     medicaidByCcn.set(ccn, {
-      medicaidDgme: v.medicaidDgme,
-      medicaidIme: v.medicaidIme,
+      medicaidDgme: v.medicaidDgme ?? null,
+      medicaidIme: v.medicaidIme ?? null,
+      medicaidTotal: total,
       medicaidYear: src.meta.academicYear,
       medicaidProgram: src.meta.program,
+      medicaidNote: src.meta.note ?? null,
+      medicaidSourceUrl: src.meta.sourceUrl ?? null,
     });
   }
 }
@@ -95,8 +126,11 @@ export const GME_HOSPITALS: GmeHospital[] = dataset.hospitals.map((h) => {
     ...h,
     medicaidDgme: m?.medicaidDgme ?? null,
     medicaidIme: m?.medicaidIme ?? null,
+    medicaidTotal: m?.medicaidTotal ?? null,
     medicaidYear: m?.medicaidYear ?? null,
     medicaidProgram: m?.medicaidProgram ?? null,
+    medicaidNote: m?.medicaidNote ?? null,
+    medicaidSourceUrl: m?.medicaidSourceUrl ?? null,
   };
 });
 

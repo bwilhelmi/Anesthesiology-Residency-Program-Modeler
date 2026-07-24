@@ -13,7 +13,19 @@
       "NJ",
       "NV",
       "UT"
-    ]
+    ],
+    "ingestedPerHospitalStates": [
+      "AZ",
+      "FL",
+      "MN",
+      "NJ",
+      "UT"
+    ],
+    "publishedNotIngestedStates": {
+      "ME": "Per-hospital data is a per-discharge add-on RATE, not an annual dollar total \u2014 not convertible to comparable annual figures.",
+      "MI": "Per-hospital GME Distribution spreadsheet is served behind a bot-blocking MDHHS page; file not retrievable here.",
+      "NV": "GME is a column in a sparse multi-column statutory-report table that does not extract reliably; not ingested to avoid misattribution."
+    }
   },
   "profiles": {
     "AK": {
