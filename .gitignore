@@ -17,3 +17,8 @@ npm-debug.log*
 # Env
 .env
 .env.local
+
+# Large raw CMS source files for the GME dataset (hundreds of MB).
+# The committed artifact is src/data/gmeHospitals.json, rebuilt by
+# scripts/build-gme-dataset.mjs from these. Do not commit the raw files.
+/data/gme/raw/

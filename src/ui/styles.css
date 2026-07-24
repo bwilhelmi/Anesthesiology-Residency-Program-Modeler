@@ -344,6 +344,120 @@ body {
   color: var(--text-muted);
 }
 
+/* Hospital GME picker */
+.hp-selectors {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.hp-selectors .region-select {
+  flex: 1;
+  min-width: 120px;
+}
+.hp-hospital-select {
+  flex: 3;
+  min-width: 200px;
+}
+.hp-detail {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.hp-detail-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.hp-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+.hp-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.hp-period {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: right;
+  line-height: 1.4;
+}
+.hp-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 2px 6px;
+  border-radius: 999px;
+  margin-top: 3px;
+}
+.hp-badge-settled {
+  background: color-mix(in srgb, var(--brand) 18%, transparent);
+  color: var(--brand-strong);
+}
+.hp-badge-prov {
+  background: color-mix(in srgb, #b7791f 20%, transparent);
+  color: #8a5a12;
+}
+.hp-headline {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.hp-figure {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+}
+.hp-figure-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+}
+.hp-figure-value {
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+.hp-figure-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.hp-secondary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.hp-secondary strong {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.hp-apply {
+  align-self: flex-start;
+  margin-left: 0;
+}
+@media (max-width: 560px) {
+  .hp-headline {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Callout */
 .callout {
   background: var(--surface-2);

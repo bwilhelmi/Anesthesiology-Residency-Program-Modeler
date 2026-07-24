@@ -18,6 +18,7 @@ import {
 } from "./components/Field";
 import { Results } from "./components/Results";
 import { RegionPicker } from "./components/RegionPicker";
+import { HospitalPicker } from "./components/HospitalPicker";
 import { currency, number } from "./format";
 
 const STORAGE_KEY = "anesthesia-residency-model-inputs-v1";
@@ -195,6 +196,17 @@ export function App() {
             title="Medicare & Medicaid GME funding"
             subtitle="Cap status and reimbursement inputs"
           >
+            <HospitalPicker
+              onApply={(a) =>
+                patchGme({
+                  capHeadroomFte: a.capHeadroomFte,
+                  atMedicareCap: a.atMedicareCap,
+                  directGmePerResidentAmount: a.directGmePerResidentAmount,
+                  availableBeds: a.availableBeds,
+                  existingResidentFte: a.existingResidentFte,
+                })
+              }
+            />
             <ToggleField
               label="Hospital is at its Medicare resident cap"
               help="At cap, residents above the headroom generate no new Medicare DGME/IME."
