@@ -36,6 +36,9 @@ function loadInitial(): ModelInputs {
 
 export function App() {
   const [inputs, setInputs] = React.useState<ModelInputs>(loadInitial);
+  // Grayscale proof: no meaning in this interface may be carried by hue alone,
+  // and screens end up printed in board decks. This makes that checkable.
+  const [proof, setProof] = React.useState(false);
 
   React.useEffect(() => {
     try {
@@ -75,7 +78,7 @@ export function App() {
   const reset = () => setInputs(DEFAULT_INPUTS);
 
   return (
-    <div className="app">
+    <div className={`app ${proof ? "proof" : ""}`}>
       <header className="app-header">
         <div className="app-header-inner">
           <div>
@@ -85,9 +88,20 @@ export function App() {
               residency at your hospital.
             </p>
           </div>
-          <button type="button" className="btn-reset" onClick={reset}>
-            Reset to defaults
-          </button>
+          <div className="header-actions">
+            <button
+              type="button"
+              className="proof-toggle"
+              aria-pressed={proof}
+              onClick={() => setProof((p) => !p)}
+              title="Preview the page in grayscale to check it survives a printed board deck"
+            >
+              Grayscale proof
+            </button>
+            <button type="button" className="btn-reset" onClick={reset}>
+              Reset to defaults
+            </button>
+          </div>
         </div>
       </header>
 

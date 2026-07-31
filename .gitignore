@@ -18,6 +18,10 @@ npm-debug.log*
 .env
 .env.local
 
+# Raw design-system handoff exported from claude.ai/design. Intermediate source
+# material only — the tokens it carries land in src/ui/styles.css.
+/design-handoff/
+
 # Large raw CMS source files for the GME dataset (hundreds of MB).
 # The committed artifact is src/data/gmeHospitals.json, rebuilt by
 # scripts/build-gme-dataset.mjs from these. Do not commit the raw files.

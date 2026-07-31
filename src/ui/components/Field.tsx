@@ -173,8 +173,9 @@ export function Section({
           <span className="panel-title">{title}</span>
           {subtitle && <span className="panel-subtitle">{subtitle}</span>}
         </span>
+        {/* One glyph; the stylesheet rotates it when the section is closed. */}
         <span className="chev" aria-hidden>
-          {open ? "▾" : "▸"}
+          ▾
         </span>
       </button>
       {open && <div className="panel-body">{children}</div>}

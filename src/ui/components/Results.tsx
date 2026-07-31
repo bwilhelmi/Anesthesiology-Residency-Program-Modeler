@@ -29,6 +29,12 @@ function netClass(n: number): string {
   return n >= 0 ? "pos" : "neg";
 }
 
+/** A table/card figure: parenthesised when negative, an em dash at true zero. */
+function fig(n: number, opts: { compact?: boolean } = {}): string {
+  if (n === 0) return "—";
+  return currency(n, { ...opts, accounting: true });
+}
+
 export function Results({ result }: { result: ModelResult }) {
   const ss = result.steadyState;
   return (
@@ -37,7 +43,7 @@ export function Results({ result }: { result: ModelResult }) {
         <div className="headline-card">
           <span className="headline-label">Steady-state annual net value</span>
           <span className={`headline-value ${netClass(ss.netValue)}`}>
-            {currency(ss.netValue)}
+            {fig(ss.netValue)}
           </span>
           <span className="headline-sub">
             {currency(ss.totalBenefits, { compact: true })} benefits −{" "}
@@ -48,7 +54,7 @@ export function Results({ result }: { result: ModelResult }) {
         <div className="headline-card">
           <span className="headline-label">5-year cumulative net (incl. startup)</span>
           <span className={`headline-value ${netClass(result.fiveYearCumulativeNet)}`}>
-            {currency(result.fiveYearCumulativeNet)}
+            {fig(result.fiveYearCumulativeNet)}
           </span>
           <span className="headline-sub">
             4 ramp years + 1 steady-state year, less one-time startup cost
@@ -114,10 +120,10 @@ function RampTable({
               {RESIDENCY_YEARS.map((y) => (
                 <td key={y}>{r.residentsByYear[y]}</td>
               ))}
-              <td>{currency(r.totalBenefits, { compact: true })}</td>
-              <td>{currency(r.totalCosts, { compact: true })}</td>
+              <td>{fig(r.totalBenefits, { compact: true })}</td>
+              <td>{fig(r.totalCosts, { compact: true })}</td>
               <td className={netClass(r.netValue)}>
-                {currency(r.netValue, { compact: true })}
+                {fig(r.netValue, { compact: true })}
               </td>
             </tr>
           ))}
@@ -127,10 +133,10 @@ function RampTable({
             {RESIDENCY_YEARS.map((y) => (
               <td key={y}>{steadyState.residentsByYear[y]}</td>
             ))}
-            <td>{currency(steadyState.totalBenefits, { compact: true })}</td>
-            <td>{currency(steadyState.totalCosts, { compact: true })}</td>
+            <td>{fig(steadyState.totalBenefits, { compact: true })}</td>
+            <td>{fig(steadyState.totalCosts, { compact: true })}</td>
             <td className={netClass(steadyState.netValue)}>
-              {currency(steadyState.netValue, { compact: true })}
+              {fig(steadyState.netValue, { compact: true })}
             </td>
           </tr>
         </tbody>
