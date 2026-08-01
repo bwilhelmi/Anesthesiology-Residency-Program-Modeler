@@ -34,7 +34,7 @@ pre-revenue build-up happen inside the projection, not in your head.
 | **Medicare Indirect Medical Education (IME)** | `IME% = 1.35 × [(1 + r)^0.405 − 1]` on Medicare inpatient operating payments, credited *marginally* because IME is nonlinear in the resident-to-bed ratio `r`, and clipped by the ratio cap. |
 | **Medicare capital IME** *(optional, off by default)* | `e^(0.2822 × r) − 1` on Medicare capital PPS payments. |
 | **Medicaid GME** | Per resident FTE, or a fixed annual appropriation that does **not** scale with program size — states differ in kind, not just amount. |
-| **Clinical labor substitution** | Residents help staff anesthetizing locations, offsetting CRNA/locum coverage. Valued at the fully-loaded CRNA cost of the coverage each level provides *at the sponsor hospital*, and capped at the locations the hospital actually runs. |
+| **Clinical labor substitution** | Residents help staff anesthetizing locations, offsetting CRNA/locum coverage. Valued at the **all-in** cost of that coverage — base salary, premium pay, and fringe — for the coverage each level provides *at the sponsor hospital*, capped at the locations the hospital actually runs. |
 | **Off-service / intern service value** | Value delivered to host departments during required non-anesthesia rotations — credited only for months spent at the sponsor hospital. |
 | **Retention pipeline** | Graduates hired by the hospital or its group, valued at the recruiting, signing, and locum-bridge cost their hire **avoids**. This is an avoided cost, never revenue. |
 | **Overnight call coverage** *(optional, off by default)* | In-house nights that would otherwise be CRNA call stipends, overtime, or locum coverage. Leave it off if your coverage FTEs already include call. |
@@ -144,6 +144,29 @@ Medicare FTE counts at the hospital where the training occurs, and clinical valu
 accrues where the resident is standing — so months at a county hospital or VA
 generate neither sponsor FTE nor sponsor coverage. Every one of these parameters
 is editable per PGY level.
+
+---
+
+## The premium-pay asymmetry
+
+Resident coverage is not simply "a cheaper CRNA." The two are paid on different
+terms:
+
+- A **CRNA** earns overtime when the room runs past the scheduled day, premium
+  pay on holidays, and weekend/call differentials.
+- A **resident** earns a fixed stipend regardless — bounded, but not repriced, by
+  the ACGME's 80-hour ceiling.
+
+So the coverage a resident displaces costs more than a base salary implies, and
+`crnaPremiumPayLoad` is where that is stated. It applies **only** to the
+labor-substitution credit; no cost line moves with it.
+
+The 12% default is a placeholder, not a survey figure — no public dataset
+isolates CRNA overtime as a share of base. Your payroll knows the real number
+exactly, which makes this one of the few assumptions in the model that can be
+*settled* rather than argued. It is worth doing: at the shipped defaults, moving
+it from 0% to 12% is the difference between a program that never repays its
+build-out and one that breaks even in year 9.
 
 ---
 

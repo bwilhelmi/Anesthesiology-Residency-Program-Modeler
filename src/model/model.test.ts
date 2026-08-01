@@ -21,6 +21,7 @@ import {
 } from "./gme";
 import {
   coverageFteForYear,
+  crnaCostOfCoverage,
   incrementalSupervisionCostPerLocation,
   juniorityWeight,
   laborSubstitutionValue,
@@ -356,6 +357,56 @@ describe("Clinical value", () => {
   });
 });
 
+describe("CRNA premium pay", () => {
+  it("values coverage at base + premium + fringe", () => {
+    const salaries = {
+      ...DEFAULT_INPUTS.salaries,
+      crnaSalary: 200_000,
+      crnaPremiumPayLoad: 0.1,
+      benefitLoadRate: 0.25,
+    };
+    // 200,000 × 1.10 = 220,000 of wages, × 1.25 fringe = 275,000.
+    expect(crnaCostOfCoverage(salaries)).toBeCloseTo(275_000, 6);
+  });
+
+  it("reduces to plain loaded salary when there is no premium", () => {
+    const salaries = { ...DEFAULT_INPUTS.salaries, crnaPremiumPayLoad: 0 };
+    expect(crnaCostOfCoverage(salaries)).toBeCloseTo(
+      loaded(salaries.crnaSalary, salaries.benefitLoadRate),
+      6
+    );
+  });
+
+  it("raises the labor benefit without touching any cost line", () => {
+    const withPremium = runModel(DEFAULT_INPUTS).steadyState;
+    const withoutPremium = runModel({
+      ...DEFAULT_INPUTS,
+      salaries: { ...DEFAULT_INPUTS.salaries, crnaPremiumPayLoad: 0 },
+    }).steadyState;
+
+    const labor = (y: typeof withPremium) =>
+      y.benefits.find((b) => b.key === "labor")!.amount;
+    expect(labor(withPremium)).toBeCloseTo(labor(withoutPremium) * 1.12, 6);
+
+    // The asymmetry is the whole point: a resident's stipend does not move, and
+    // neither does the attending time their room consumes.
+    for (const key of ["residentsalary", "supervision", "efficiency"]) {
+      expect(withPremium.costs.find((c) => c.key === key)!.amount).toBeCloseTo(
+        withoutPremium.costs.find((c) => c.key === key)!.amount,
+        6
+      );
+    }
+  });
+
+  it("ignores a negative premium rather than crediting one", () => {
+    const salaries = { ...DEFAULT_INPUTS.salaries, crnaPremiumPayLoad: -0.5 };
+    expect(crnaCostOfCoverage(salaries)).toBeCloseTo(
+      loaded(salaries.crnaSalary, salaries.benefitLoadRate),
+      6
+    );
+  });
+});
+
 describe("Incremental attending supervision (P0.1)", () => {
   it("prices the extra attending time a 1:2 teaching room costs vs a 1:4 CRNA room", () => {
     // Attending loaded at $500,000 (400k base + 25% load), 1:2 vs 1:4.
@@ -401,7 +452,7 @@ describe("Throughput loss is charged once (P0.2)", () => {
     };
     const cohort = residentsInProgramYear(inputs, 4);
     const r = computeYear(inputs, 4, cohort);
-    const crnaLoaded = loaded(inputs.salaries.crnaSalary, inputs.salaries.benefitLoadRate);
+    const crnaLoaded = crnaCostOfCoverage(inputs.salaries);
     const expected = RESIDENCY_YEARS.reduce((s, y) => {
       const p = inputs.clinical[y];
       return (
@@ -452,11 +503,8 @@ describe("Coverage cannot exceed staffed-location demand (P0.3)", () => {
     expect(laborB).toBeCloseTo(laborA, 6);
     expect(stipendB).toBeCloseTo(2 * stipendA, 6);
 
-    // The capped labor value is exactly demand-worth of loaded CRNA coverage.
-    const crnaLoaded = loaded(
-      DEFAULT_INPUTS.salaries.crnaSalary,
-      DEFAULT_INPUTS.salaries.benefitLoadRate
-    );
+    // The capped labor value is exactly demand-worth of all-in CRNA coverage.
+    const crnaLoaded = crnaCostOfCoverage(DEFAULT_INPUTS.salaries);
     expect(laborA).toBeCloseTo(staffedLocationDemand(oversized) * crnaLoaded, 6);
   });
 

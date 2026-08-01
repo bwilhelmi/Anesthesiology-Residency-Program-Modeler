@@ -35,8 +35,24 @@ export const RESIDENCY_YEARS: ResidencyYear[] = ["PGY1", "PGY2", "PGY3", "PGY4"]
 export interface SalaryInputs {
   /** Median W-2 salary for an anesthesiologist in the community. */
   anesthesiologistSalary: number;
-  /** Median salary for a CRNA (Certified Registered Nurse Anesthetist). */
+  /** Median BASE salary for a CRNA (Certified Registered Nurse Anesthetist). */
   crnaSalary: number;
+  /**
+   * Premium pay a CRNA earns above base, as a fraction of base salary:
+   * overtime on rooms that run past the scheduled day, holiday pay, and
+   * weekend/call differentials.
+   *
+   * This exists because the substitution is NOT symmetric. A resident is paid a
+   * fixed stipend no matter how late the room runs or which holiday it falls
+   * on; a CRNA is paid more for both. Valuing resident coverage against a CRNA
+   * BASE salary therefore understates what that coverage is actually worth to
+   * the hospital, and it is the only place in the model where the asymmetry can
+   * be stated.
+   *
+   * Applies solely to the labor-substitution credit — it is a property of the
+   * coverage being displaced, not of anyone's employment terms.
+   */
+  crnaPremiumPayLoad: number;
   /** Annual resident stipend (roughly constant across PGY levels). */
   residentSalary: number;
   /**

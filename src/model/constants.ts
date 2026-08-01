@@ -109,6 +109,22 @@ export const TEACHING_ANESTHESIA_CONCURRENCY_LIMIT = 2;
 export const DEFAULT_SALARIES = {
   anesthesiologistSalary: 400_000,
   crnaSalary: 220_000,
+  /*
+   * Premium pay above base, as a fraction of base. The dominant term is
+   * overtime on rooms that run past the scheduled day; holidays and
+   * weekend/call differentials add to it. A resident on a fixed stipend earns
+   * none of it, which is exactly why it belongs in the value of the coverage
+   * they displace.
+   *
+   * 12% is a planning placeholder, not a survey figure: no public dataset
+   * reports CRNA overtime as a share of base (the AANA survey reports base and
+   * total compensation, which does not isolate premium pay). REPLACE IT WITH
+   * YOUR OWN PAYROLL — the hospital already knows its CRNA overtime and holiday
+   * dollars exactly, which makes this one of the few assumptions here that can
+   * be settled rather than argued. Plausible range: 5% for a group that rarely
+   * runs late, 20%+ where rooms routinely go past 5pm.
+   */
+  crnaPremiumPayLoad: 0.12,
   residentSalary: 68_000,
   benefitLoadRate: 0.25,
   // Absolute dollars, not a percentage: health/dental premiums, retirement,

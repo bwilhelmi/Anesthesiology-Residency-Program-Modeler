@@ -48,15 +48,28 @@ const amount = (items: { key: string; amount: number }[], key: string): number =
  *
  * Update these numbers only alongside a deliberate model change, and say why in
  * the commit message.
+ *
+ * UPDATED ONCE SINCE: CRNA premium pay. Valuing resident coverage against a
+ * CRNA BASE salary understated it, because the substitution is asymmetric — a
+ * CRNA earns overtime when the room runs late and premium pay on holidays, and
+ * a resident on a fixed stipend earns neither. Adding a 12% premium load to the
+ * cost of the coverage residents displace (and to nothing else) moves the
+ * default program from "never breaks even" to breakeven in year 9:
+ *
+ *   NPV            −$1,114,635  ->    +$849,528
+ *   mature-year net   +$672,829  ->  +$1,052,724
+ *
+ * That one assumption is worth more than the entire Medicaid line at defaults,
+ * which is why it is a visible, sourced input rather than a fattened salary.
  * ------------------------------------------------------------------------ */
 describe("Frozen default program (P7.3)", () => {
   const r = runModel(DEFAULT_INPUTS);
 
   it("reports the frozen summary", () => {
-    expect(r.summary.nominalCumulativeNet).toBeCloseTo(44_224.67, 1);
-    expect(r.summary.npv).toBeCloseTo(-1_114_635.25, 1);
-    expect(r.summary.breakevenYear).toBeNull();
-    expect(r.summary.steadyStateAnnualNet).toBeCloseTo(672_828.52, 1);
+    expect(r.summary.nominalCumulativeNet).toBeCloseTo(3_088_270.63, 1);
+    expect(r.summary.npv).toBeCloseTo(849_527.94, 1);
+    expect(r.summary.breakevenYear).toBe(9);
+    expect(r.summary.steadyStateAnnualNet).toBeCloseTo(1_052_724.21, 1);
   });
 
   it("reports the frozen mature year", () => {
@@ -65,7 +78,7 @@ describe("Frozen default program (P7.3)", () => {
 
     expect(amount(r.steadyState.benefits, "dgme")).toBeCloseTo(976_368, 0);
     expect(amount(r.steadyState.benefits, "ime")).toBeCloseTo(1_785_573, 0);
-    expect(amount(r.steadyState.benefits, "labor")).toBeCloseTo(3_165_797, 0);
+    expect(amount(r.steadyState.benefits, "labor")).toBeCloseTo(3_545_693, 0);
     expect(amount(r.steadyState.benefits, "offservice")).toBeCloseTo(257_035, 0);
     expect(amount(r.steadyState.benefits, "retention")).toBeCloseTo(785_592, 0);
 

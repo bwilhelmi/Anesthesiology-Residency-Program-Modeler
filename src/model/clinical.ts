@@ -83,13 +83,31 @@ export function coverageFteForYear(params: ResidentYearClinicalParams): number {
   );
 }
 
+/**
+ * What one FTE of CRNA coverage actually costs the hospital for a year: base
+ * salary, plus the premium pay that coverage earns (overtime on late-running
+ * rooms, holidays, weekend and call differentials), plus the fringe load.
+ *
+ * This — not base salary — is the figure resident coverage displaces. The
+ * substitution is asymmetric: a resident's stipend does not move when the room
+ * runs until seven, or when the day is Thanksgiving.
+ *
+ * Simplification: the fringe load is applied to premium dollars as well as
+ * base. Payroll taxes and retirement match do scale with overtime earnings;
+ * health premiums do not, so this slightly overstates the fringe on the premium
+ * portion — a second-order effect next to leaving premium pay out entirely.
+ */
+export function crnaCostOfCoverage(salaries: SalaryInputs): number {
+  const wages = salaries.crnaSalary * (1 + Math.max(0, salaries.crnaPremiumPayLoad));
+  return loaded(wages, salaries.benefitLoadRate);
+}
+
 /** Labor value (CRNA cost offset) of one resident-year at a given level. */
 export function laborSubstitutionValue(
   params: ResidentYearClinicalParams,
   salaries: SalaryInputs
 ): number {
-  const crnaLoaded = loaded(salaries.crnaSalary, salaries.benefitLoadRate);
-  return coverageFteForYear(params) * crnaLoaded;
+  return coverageFteForYear(params) * crnaCostOfCoverage(salaries);
 }
 
 /**

@@ -5,6 +5,7 @@ import {
   SCENARIOS,
   SCENARIO_LABELS,
   YEAR_LABELS,
+  crnaCostOfCoverage,
   effectivePra,
   runModel,
   staffedLocationDemand,
@@ -33,7 +34,7 @@ import { currency, number, percent } from "./format";
  * (with the old cap boolean and no Medicaid mode) and break the model — a new
  * key retires those saves instead of half-restoring them.
  */
-const STORAGE_KEY = "anesthesia-residency-model-inputs-v2";
+const STORAGE_KEY = "anesthesia-residency-model-inputs-v3";
 
 function loadInitial(): ModelInputs {
   try {
@@ -198,13 +199,27 @@ export function App() {
               step={5000}
             />
             <NumberField
-              label="CRNA salary"
-              help="Drives the value of coverage that residents substitute for."
+              label="CRNA base salary"
+              help="Base only. Premium pay is the separate field below, so the two assumptions can be argued separately."
               value={inputs.salaries.crnaSalary}
               onChange={(v) => patchSalaries({ crnaSalary: v })}
               prefix="$"
               step={5000}
             />
+            <PercentField
+              label="CRNA premium pay (overtime, holidays, differentials)"
+              help="Above base. Residents earn a fixed stipend however late the room runs or whichever holiday it falls on — a CRNA does not, so this is part of what resident coverage displaces. 12% is a placeholder: your payroll knows the real figure exactly."
+              cite={[13]}
+              clamp={{ min: 0, max: 1 }}
+              value={inputs.salaries.crnaPremiumPayLoad}
+              onChange={(v) => patchSalaries({ crnaPremiumPayLoad: v })}
+            />
+            <div className="callout">
+              One FTE of CRNA coverage costs{" "}
+              <strong>{currency(crnaCostOfCoverage(inputs.salaries))}</strong> all in —
+              base, premium pay, and fringe. That is the figure resident coverage is
+              credited against.
+            </div>
             <NumberField
               label="Resident stipend"
               value={inputs.salaries.residentSalary}
