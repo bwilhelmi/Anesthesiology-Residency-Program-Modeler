@@ -2,11 +2,14 @@ import React from "react";
 import {
   DEFAULT_INPUTS,
   RESIDENCY_YEARS,
+  SCENARIOS,
+  SCENARIO_LABELS,
   YEAR_LABELS,
   effectivePra,
   runModel,
   staffedLocationDemand,
   steadyStateCoverageFte,
+  tornado,
   type ModelInputs,
   type ResidencyYear,
 } from "../model";
@@ -57,8 +60,17 @@ export function App() {
   }, [inputs]);
 
   const result = React.useMemo(() => runModel(inputs), [inputs]);
+  // One model run per variable end — cheap, but not free, so memoize it.
+  const tornadoBars = React.useMemo(() => tornado(inputs), [inputs]);
   const demand = staffedLocationDemand(inputs);
   const coverage = steadyStateCoverageFte(inputs);
+  // The presets patch the current inputs rather than replacing them, so a
+  // localized salary or bed count survives. The chip says when that has left
+  // the shipped defaults behind.
+  const modifiedFromBase = React.useMemo(
+    () => JSON.stringify(inputs) !== JSON.stringify(DEFAULT_INPUTS),
+    [inputs]
+  );
 
   // Immutable nested update helpers.
   const patch = (p: Partial<ModelInputs>) => setInputs((i) => ({ ...i, ...p }));
@@ -108,6 +120,24 @@ export function App() {
             </p>
           </div>
           <div className="header-actions">
+            <div className="scenario-picker" role="group" aria-label="Scenario presets">
+              {(Object.keys(SCENARIOS) as Array<keyof typeof SCENARIOS>).map((name) => (
+                <button
+                  key={name}
+                  type="button"
+                  className="scenario-btn"
+                  onClick={() => patch(SCENARIOS[name])}
+                  title={`Apply the ${SCENARIO_LABELS[name].toLowerCase()} assumptions to the current inputs`}
+                >
+                  {SCENARIO_LABELS[name]}
+                </button>
+              ))}
+              {modifiedFromBase && (
+                <span className="chip" title="These inputs differ from the shipped defaults">
+                  modified from base
+                </span>
+              )}
+            </div>
             <button
               type="button"
               className="proof-toggle"
@@ -729,7 +759,7 @@ export function App() {
         </div>
 
         <div className="output">
-          <Results result={result} />
+          <Results result={result} tornadoBars={tornadoBars} />
         </div>
       </main>
 

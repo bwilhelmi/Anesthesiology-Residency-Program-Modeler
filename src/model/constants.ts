@@ -7,7 +7,12 @@
  * moves every year (salaries, CMS rates), treat it as an estimate to update.
  */
 
-import type { ModelInputs, ResidencyYear, ResidentYearClinicalParams } from "./types";
+import type {
+  ModelInputs,
+  ResidencyYear,
+  ResidentYearClinicalParams,
+} from "./types";
+import { RESIDENCY_YEARS } from "./types";
 
 /* --------------------------- CMS / IME constants -------------------------- */
 
@@ -261,4 +266,60 @@ export const DEFAULT_INPUTS: ModelInputs = {
     caseThroughputLoss: 0.08,
   },
   clinical: DEFAULT_CLINICAL,
+};
+
+/* ------------------------------- Scenarios -------------------------------- */
+
+/** Scale every level's coverage capability by one multiplier. */
+function scaledCoverage(factor: number): Record<ResidencyYear, ResidentYearClinicalParams> {
+  const out = {} as Record<ResidencyYear, ResidentYearClinicalParams>;
+  for (const year of RESIDENCY_YEARS) {
+    out[year] = {
+      ...DEFAULT_CLINICAL[year],
+      anesthesiaCoverageFte: DEFAULT_CLINICAL[year].anesthesiaCoverageFte * factor,
+    };
+  }
+  return out;
+}
+
+/**
+ * Three defensible postures on the same program. A single point estimate invites
+ * an argument about whether it is optimistic; three named cases move the
+ * argument to where it belongs — which assumptions the hospital believes.
+ *
+ * Each preset patches the current inputs, so anything the user has already
+ * localized (salaries, beds, the hospital's own PRA) survives.
+ */
+export const SCENARIOS: Record<
+  "conservative" | "base" | "favorable",
+  Partial<ModelInputs>
+> = {
+  conservative: {
+    // Residents cover less than hoped, fewer stay, teaching costs more case
+    // time, and the money is judged against a demanding hurdle rate.
+    clinical: scaledCoverage(0.8),
+    retention: { ...DEFAULT_INPUTS.retention, retentionRate: 0.15 },
+    efficiency: { ...DEFAULT_INPUTS.efficiency, caseThroughputLoss: 0.12 },
+    projection: { ...DEFAULT_INPUTS.projection, discountRate: 0.08 },
+  },
+  base: {
+    clinical: DEFAULT_CLINICAL,
+    retention: DEFAULT_INPUTS.retention,
+    efficiency: DEFAULT_INPUTS.efficiency,
+    projection: DEFAULT_INPUTS.projection,
+  },
+  favorable: {
+    // A well-run program in a market it can recruit from.
+    clinical: scaledCoverage(1.1),
+    retention: { ...DEFAULT_INPUTS.retention, retentionRate: 0.45 },
+    efficiency: { ...DEFAULT_INPUTS.efficiency, caseThroughputLoss: 0.05 },
+    projection: { ...DEFAULT_INPUTS.projection, discountRate: 0.05 },
+  },
+};
+
+/** Display labels for the scenario presets. */
+export const SCENARIO_LABELS: Record<keyof typeof SCENARIOS, string> = {
+  conservative: "Conservative",
+  base: "Base",
+  favorable: "Favorable",
 };
