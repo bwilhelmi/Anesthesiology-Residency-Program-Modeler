@@ -25,11 +25,22 @@ import {
 import {
   MATURE_PROGRAM_YEAR,
   MEDICAL_DIRECTION_CONCURRENCY_LIMIT,
+  RESIDENCY_YEARS_TO_CA2,
   TEACHING_ANESTHESIA_CONCURRENCY_LIMIT,
 } from "./constants";
 import { gmeFundingTimeline, medicaidGme } from "./gme";
 import type { GmeYearFte, GmeYearFunding } from "./gme";
-import { annualProgramSupportCost, loadedResidentCost, residentSalaryCost } from "./program";
+import {
+  annualProgramSupportCost,
+  loadedResidentCost,
+  perResidentProgramCost,
+  residentSalaryCost,
+} from "./program";
+import {
+  FIRST_GRADUATION_BENEFIT_YEAR,
+  callCoverageBenefit,
+  retentionBenefit,
+} from "./workforce";
 import type {
   LineItem,
   ModelInputs,
@@ -133,6 +144,17 @@ export function computeYear(
   const dgme = gmeFunding.dgme;
   const ime = gmeFunding.ime;
   const medicaid = medicaidGme(totalFte, inputs.gme.medicaid);
+  if (
+    inputs.gme.medicaid.mode === "appropriation" &&
+    inputs.gme.medicaid.requiresLocalMatch &&
+    inputs.gme.medicaid.annualAppropriationTotal > 0
+  ) {
+    warnings.push(
+      "Appropriation/IGA-based Medicaid GME (e.g. Arizona AHCCCS) requires a funded " +
+        "intergovernmental agreement for the non-federal share — treat it as $0 until an " +
+        "IGA sponsor is committed."
+    );
+  }
 
   /*
    * Coverage, labor value, and the teaching margin loss all move together, so
@@ -232,6 +254,37 @@ export function computeYear(
     },
   ];
 
+  // Workforce pipeline: graduates the hospital hires instead of recruiting.
+  const retention = retentionBenefit(
+    inputs,
+    (y) => residentsInProgramYear(inputs, y),
+    programYear
+  );
+  if (inputs.retention.enabled) {
+    benefits.push({
+      key: "retention",
+      label: "Retention pipeline (avoided recruitment cost)",
+      amount: retention,
+      detail:
+        programYear < FIRST_GRADUATION_BENEFIT_YEAR
+          ? `No class has graduated yet; the first hiring benefit lands in program year ${FIRST_GRADUATION_BENEFIT_YEAR}.`
+          : `Graduates hired × ${percentText(inputs.retention.retentionRate)} retention × the recruiting, signing, and locum-bridge cost their hire avoids. This is avoided cost, not revenue.`,
+    });
+  }
+
+  const callCoverage = callCoverageBenefit(inputs.callCoverage, programYear);
+  if (inputs.callCoverage.enabled) {
+    benefits.push({
+      key: "call",
+      label: "Overnight in-house call coverage (avoided cost)",
+      amount: callCoverage,
+      detail:
+        programYear < RESIDENCY_YEARS_TO_CA2
+          ? "Flat from the first year the program has CA-2s (program year 3)."
+          : `${inputs.callCoverage.nightsPerYearCovered} nights × the CRNA call stipend, overtime, or locum night avoided. Do not enable this if your coverage FTEs already include call.`,
+    });
+  }
+
   // Capital IME is off unless the hospital's capital PPS payments are supplied,
   // so an estimate never gains a line the user did not ask for.
   if (gmeFunding.capitalIme > 0) {
@@ -248,6 +301,8 @@ export function computeYear(
 
   const residentCost = residentSalaryCost(inputs.salaries, totalResidents);
   const supportCost = annualProgramSupportCost(inputs, totalResidents);
+  const perResidentAnnual = perResidentProgramCost(inputs.program);
+  const perResidentCost = perResidentAnnual * totalResidents;
 
   // Teaching efficiency loss: net margin lost on the resident-covered locations
   // due to teaching slowdown, valued at the margin per staffed location. Charged
@@ -276,6 +331,12 @@ export function computeYear(
       label: "Program leadership, coordination & overhead",
       amount: supportCost,
       detail: "PD/APD protected time, coordinator(s), non-billable faculty teaching, fixed overhead.",
+    },
+    {
+      key: "perresident",
+      label: "Per-resident program costs (liability, GME office, fees)",
+      amount: perResidentCost,
+      detail: `${round1(totalResidents)} resident(s) × ${fmt(perResidentAnnual)}: professional liability, the DIO/GMEC/GME-office allocation the ACGME Institutional Requirements oblige, and ERAS/NRMP, ITE, ABA and licensure fees.`,
     },
     {
       key: "efficiency",
@@ -375,6 +436,18 @@ function escalateInputs(inputs: ModelInputs, programYear: number): ModelInputs {
       participatingSiteSupportAnnual:
         inputs.program.participatingSiteSupportAnnual * f.wage,
       startupCost: inputs.program.startupCost * f.wage,
+      residentLiabilityAnnual: inputs.program.residentLiabilityAnnual * f.wage,
+      gmeInstitutionalOverheadPerResident:
+        inputs.program.gmeInstitutionalOverheadPerResident * f.wage,
+      perResidentFeesAnnual: inputs.program.perResidentFeesAnnual * f.wage,
+    },
+    retention: {
+      ...inputs.retention,
+      avoidedCostPerRetainedHire: inputs.retention.avoidedCostPerRetainedHire * f.wage,
+    },
+    callCoverage: {
+      ...inputs.callCoverage,
+      avoidedCostPerNight: inputs.callCoverage.avoidedCostPerNight * f.wage,
     },
     efficiency: {
       ...inputs.efficiency,
@@ -578,6 +651,10 @@ function round1(x: number): string {
 
 function clamp01(x: number): number {
   return Math.max(0, Math.min(1, x));
+}
+
+function percentText(fraction: number): string {
+  return `${(fraction * 100).toFixed(0)}%`;
 }
 
 /** Plain-language note on what the FTE cap did to this year's DGME. */

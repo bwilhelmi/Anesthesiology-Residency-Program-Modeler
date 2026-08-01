@@ -1,15 +1,29 @@
 import React from "react";
 import { percent } from "../format";
+import { Cite } from "./References";
 
 type BaseProps = {
   label: string;
   help?: string;
+  /** Bibliography entry numbers backing this figure, shown as a superscript. */
+  cite?: number[];
 };
+
+/** A field label with its optional source footnote. */
+function Label({ label, cite }: { label: string; cite?: number[] }) {
+  return (
+    <>
+      {label}
+      {cite && cite.length > 0 ? <Cite ns={cite} /> : null}
+    </>
+  );
+}
 
 /** A labeled numeric input with an optional unit prefix/suffix. */
 export function NumberField({
   label,
   help,
+  cite,
   value,
   onChange,
   min,
@@ -30,7 +44,9 @@ export function NumberField({
 }) {
   return (
     <label className={`field ${disabled ? "disabled" : ""}`}>
-      <span className="field-label">{label}</span>
+      <span className="field-label">
+        <Label label={label} cite={cite} />
+      </span>
       <span className="field-input">
         {prefix && <span className="affix">{prefix}</span>}
         <input
@@ -56,6 +72,7 @@ export function NumberField({
 export function PercentField({
   label,
   help,
+  cite,
   value,
   onChange,
   max = 100,
@@ -66,7 +83,9 @@ export function PercentField({
 }) {
   return (
     <label className="field">
-      <span className="field-label">{label}</span>
+      <span className="field-label">
+        <Label label={label} cite={cite} />
+      </span>
       <span className="field-input">
         <input
           type="number"
@@ -90,6 +109,7 @@ export function PercentField({
 export function SliderField({
   label,
   help,
+  cite,
   value,
   onChange,
   max = 1,
@@ -103,7 +123,7 @@ export function SliderField({
   return (
     <label className="field">
       <span className="field-label">
-        {label}
+        <Label label={label} cite={cite} />
         <span className="field-readout">{format(value)}</span>
       </span>
       <input
@@ -124,6 +144,7 @@ export function SliderField({
 export function ToggleField({
   label,
   help,
+  cite,
   value,
   onChange,
 }: BaseProps & {
@@ -132,7 +153,9 @@ export function ToggleField({
 }) {
   return (
     <label className="field field-toggle">
-      <span className="field-label">{label}</span>
+      <span className="field-label">
+        <Label label={label} cite={cite} />
+      </span>
       <button
         type="button"
         role="switch"
@@ -156,6 +179,7 @@ export function ToggleField({
 export function ChoiceField<T extends string>({
   label,
   help,
+  cite,
   value,
   options,
   onChange,
@@ -167,7 +191,9 @@ export function ChoiceField<T extends string>({
   const name = React.useId();
   return (
     <fieldset className="field field-choice">
-      <legend className="field-label">{label}</legend>
+      <legend className="field-label">
+        <Label label={label} cite={cite} />
+      </legend>
       <div className="choice-options">
         {options.map((o) => (
           <label

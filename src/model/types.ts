@@ -285,6 +285,23 @@ export interface ProgramCostInputs {
    */
   startupCost: number;
   /**
+   * Professional liability per resident per year — the institutional policy
+   * allocation for a trainee.
+   */
+  residentLiabilityAnnual: number;
+  /**
+   * GME institutional overhead allocated per resident: the DIO's time, the
+   * GMEC, and the GME office that the ACGME Institutional Requirements oblige
+   * a sponsoring institution to maintain. Real money, routinely left out of
+   * program-level pro formas because it sits in a different cost center.
+   */
+  gmeInstitutionalOverheadPerResident: number;
+  /**
+   * Per-resident fees: ERAS/NRMP share, the in-training exam, ABA BASIC and
+   * board fees, training licenses, ACLS/PALS certification.
+   */
+  perResidentFeesAnnual: number;
+  /**
    * Net annual payment under affiliation agreements with participating sites.
    * Positive = the sponsor pays out (the usual direction when residents rotate
    * away and the sponsor keeps paying their stipends); negative = the sponsor
@@ -309,6 +326,35 @@ export interface EfficiencyInputs {
    * the coverage FTE — that would charge one parameter through two channels.
    */
   caseThroughputLoss: number;
+}
+
+/**
+ * The workforce-pipeline benefit: residents who stay on as attendings.
+ *
+ * This is an AVOIDED COST, not revenue — recruitment fees, signing bonuses, and
+ * the locum bridge a vacancy would otherwise need. Stated that way it survives
+ * a CFO's scrutiny; stated as "revenue from retained physicians" it does not.
+ */
+export interface RetentionInputs {
+  enabled: boolean;
+  /** Share of graduates hired by the hospital or its anesthesia group. */
+  retentionRate: number;
+  /** Recruiting + signing + locum-bridge cost avoided per retained hire. */
+  avoidedCostPerRetainedHire: number;
+  /** Years over which the avoided cost is recognized, starting at graduation. */
+  benefitRecognitionYears: number;
+}
+
+/**
+ * Overnight in-house coverage residents provide. OFF by default because it
+ * double-counts for most users: if the coverage FTEs already include call, this
+ * value is already in the labor-substitution line.
+ */
+export interface CallCoverageInputs {
+  enabled: boolean;
+  nightsPerYearCovered: number;
+  /** CRNA call stipend / overtime / locum night the coverage avoids. */
+  avoidedCostPerNight: number;
 }
 
 /**
@@ -356,6 +402,8 @@ export interface ModelInputs {
   program: ProgramCostInputs;
   efficiency: EfficiencyInputs;
   projection: ProjectionInputs;
+  retention: RetentionInputs;
+  callCoverage: CallCoverageInputs;
   /** Per-year clinical parameters keyed by PGY level. */
   clinical: Record<ResidencyYear, ResidentYearClinicalParams>;
 }

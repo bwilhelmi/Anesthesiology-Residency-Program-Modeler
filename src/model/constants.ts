@@ -55,6 +55,13 @@ export const CAP_BUILDING_WINDOW_YEARS = 5;
 export const MATURE_PROGRAM_YEAR = CAP_BUILDING_WINDOW_YEARS + 1;
 
 /**
+ * The program year in which the first CA-2 class exists (PGY-1 in year 1 is a
+ * CA-2 in year 3) — the point from which residents can credibly hold overnight
+ * in-house call.
+ */
+export const RESIDENCY_YEARS_TO_CA2 = 3;
+
+/**
  * Direct-GME FTE weighting during a resident's initial residency period (IRP).
  * Anesthesiology's IRP (4 years) equals the program length, so residents are
  * weighted at 1.0 throughout. (Residents past their IRP are weighted 0.5.)
@@ -207,9 +214,34 @@ export const DEFAULT_INPUTS: ModelInputs = {
     facultyTeachingFtePerResident: 0.04,
     fixedAnnualProgramOverhead: 250_000,
     startupCost: 750_000,
+    // Institutional liability allocation for a trainee.
+    residentLiabilityAnnual: 7_500,
+    // DIO / GMEC / GME-office allocation required by the ACGME Institutional
+    // Requirements — a real cost that usually sits in another cost center.
+    gmeInstitutionalOverheadPerResident: 15_000,
+    // ERAS/NRMP share, ITE, ABA BASIC and board fees, training licenses,
+    // ACLS/PALS.
+    perResidentFeesAnnual: 4_000,
     // Net of affiliation agreements in both directions; zero until the sponsor
     // knows what its participating sites will charge or pay.
     participatingSiteSupportAnnual: 0,
+  },
+  retention: {
+    enabled: true,
+    // Roughly a third of graduates staying is a defensible planning figure for
+    // a program built to feed its own department; localize it.
+    retentionRate: 0.3,
+    // Recruiter fee, signing bonus, and the locum bridge a vacancy needs —
+    // the cost a home-grown hire avoids, not revenue.
+    avoidedCostPerRetainedHire: 400_000,
+    benefitRecognitionYears: 1,
+  },
+  callCoverage: {
+    // Off by default: for most users this value is already inside the coverage
+    // FTEs, and enabling it there would count the same nights twice.
+    enabled: false,
+    nightsPerYearCovered: 365,
+    avoidedCostPerNight: 2_000,
   },
   projection: {
     // Ten program years shows the mature program well past cap-building.

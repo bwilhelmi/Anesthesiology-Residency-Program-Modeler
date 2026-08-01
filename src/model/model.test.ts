@@ -28,7 +28,12 @@ import {
   offServiceValue,
   staffedLocationDemand,
 } from "./clinical";
-import { loadedResidentCost, residentSalaryCost } from "./program";
+import {
+  loadedResidentCost,
+  perResidentProgramCost,
+  residentSalaryCost,
+} from "./program";
+import { FIRST_GRADUATION_BENEFIT_YEAR } from "./workforce";
 import {
   computeYear,
   countableFteForYear,
@@ -613,6 +618,162 @@ describe("Attrition (P2.2)", () => {
     // is 7.65 × 4 = 30.6 — not the 40 a naive headcount × 4 would suggest.
     const y5 = countableFteForYear(lossy, 5, residentsInProgramYear(lossy, 5));
     expect(buildPermanentCap(y5.byLevel)).toBeCloseTo(30.6, 10);
+  });
+});
+
+describe("Per-resident program costs (P4.1)", () => {
+  it("sums liability, GME office overhead, and the fee stack", () => {
+    expect(perResidentProgramCost(DEFAULT_INPUTS.program)).toBe(7_500 + 15_000 + 4_000);
+  });
+
+  it("charges them per head and escalates with salary inflation", () => {
+    const r = runModel({ ...DEFAULT_INPUTS, annualAttritionRate: 0 });
+    const y1 = r.years.find((y) => y.programYear === 1)!;
+    const line = y1.costs.find((c) => c.key === "perresident")!;
+    expect(line.amount).toBeCloseTo(6 * 26_500, 6);
+
+    const y3 = r.years.find((y) => y.programYear === 3)!;
+    const perHead3 =
+      y3.costs.find((c) => c.key === "perresident")!.amount / y3.totalResidents;
+    expect(perHead3).toBeCloseTo(26_500 * Math.pow(1.03, 2), 6);
+  });
+});
+
+describe("Retention pipeline (P4.2)", () => {
+  const noAttrition: ModelInputs = { ...DEFAULT_INPUTS, annualAttritionRate: 0 };
+
+  it("credits nothing before the first class graduates", () => {
+    const r = runModel(noAttrition);
+    const beforeGraduation = r.years.filter(
+      (x) => x.programYear >= 1 && x.programYear < FIRST_GRADUATION_BENEFIT_YEAR
+    );
+    expect(beforeGraduation).not.toHaveLength(0);
+    for (const y of beforeGraduation) {
+      expect(y.benefits.find((b) => b.key === "retention")!.amount).toBe(0);
+    }
+  });
+
+  it("credits graduates × retention rate × avoided cost from program year 5", () => {
+    const r = runModel(noAttrition);
+    const y5 = r.years.find((y) => y.programYear === 5)!;
+    const expected =
+      6 * 0.3 * 400_000 * escalationFactors(DEFAULT_INPUTS.projection, 5).wage;
+    expect(y5.benefits.find((b) => b.key === "retention")!.amount).toBeCloseTo(expected, 6);
+  });
+
+  it("scales with the surviving PGY-4 cohort, not the entering class", () => {
+    const lossy: ModelInputs = { ...DEFAULT_INPUTS, annualAttritionRate: 0.1 };
+    const y5 = runModel(lossy).years.find((y) => y.programYear === 5)!;
+    const expected =
+      6 * Math.pow(0.9, 3) * 0.3 * 400_000 *
+      escalationFactors(DEFAULT_INPUTS.projection, 5).wage;
+    expect(y5.benefits.find((b) => b.key === "retention")!.amount).toBeCloseTo(expected, 6);
+  });
+
+  it("disappears entirely when switched off", () => {
+    const off: ModelInputs = {
+      ...DEFAULT_INPUTS,
+      retention: { ...DEFAULT_INPUTS.retention, enabled: false },
+    };
+    const r = runModel(off);
+    expect(r.years.every((y) => !y.benefits.some((b) => b.key === "retention"))).toBe(true);
+  });
+
+  it("spreads the avoided cost when recognized over multiple years", () => {
+    const spread: ModelInputs = {
+      ...noAttrition,
+      retention: { ...DEFAULT_INPUTS.retention, benefitRecognitionYears: 2 },
+    };
+    const r = runModel(spread);
+    const y5 = r.years.find((y) => y.programYear === 5)!;
+    const y6 = r.years.find((y) => y.programYear === 6)!;
+    // Year 5 recognizes half of one class; year 6 has two classes in flight.
+    expect(y5.benefits.find((b) => b.key === "retention")!.amount).toBeCloseTo(
+      (6 * 0.3 * 400_000 * escalationFactors(DEFAULT_INPUTS.projection, 5).wage) / 2,
+      6
+    );
+    expect(y6.benefits.find((b) => b.key === "retention")!.amount).toBeCloseTo(
+      6 * 0.3 * 400_000 * escalationFactors(DEFAULT_INPUTS.projection, 6).wage,
+      6
+    );
+  });
+});
+
+describe("Call coverage (P4.3)", () => {
+  const on: ModelInputs = {
+    ...DEFAULT_INPUTS,
+    callCoverage: { enabled: true, nightsPerYearCovered: 365, avoidedCostPerNight: 2_000 },
+  };
+
+  it("is off by default and adds no line", () => {
+    expect(DEFAULT_INPUTS.callCoverage.enabled).toBe(false);
+    expect(
+      runModel(DEFAULT_INPUTS).years.every((y) => !y.benefits.some((b) => b.key === "call"))
+    ).toBe(true);
+  });
+
+  it("starts flat in the first year with CA-2s", () => {
+    const r = runModel(on);
+    expect(r.years.find((y) => y.programYear === 2)!.benefits.find((b) => b.key === "call")!.amount)
+      .toBe(0);
+    const y3 = r.years.find((y) => y.programYear === 3)!;
+    expect(y3.benefits.find((b) => b.key === "call")!.amount).toBeCloseTo(
+      365 * 2_000 * escalationFactors(DEFAULT_INPUTS.projection, 3).wage,
+      6
+    );
+  });
+});
+
+describe("Medicaid GME modes (P4.4)", () => {
+  const appropriation = (over = {}): ModelInputs => ({
+    ...DEFAULT_INPUTS,
+    gme: {
+      ...DEFAULT_INPUTS.gme,
+      medicaid: {
+        mode: "appropriation",
+        perResidentAmount: 0,
+        annualAppropriationTotal: 2_000_000,
+        requiresLocalMatch: true,
+        ...over,
+      },
+    },
+  });
+
+  it("ignores resident count in appropriation mode", () => {
+    const small = runModel(appropriation());
+    const large = runModel({ ...appropriation(), residentsPerClass: 20 });
+    const line = (r: ReturnType<typeof runModel>) =>
+      r.steadyState.benefits.find((b) => b.key === "medicaid")!.amount;
+    expect(line(small)).toBe(2_000_000);
+    expect(line(large)).toBe(2_000_000);
+  });
+
+  it("warns when the non-federal share is not yet committed", () => {
+    expect(
+      runModel(appropriation()).warnings.some((w) => /intergovernmental agreement/.test(w))
+    ).toBe(true);
+  });
+
+  it("stays quiet when no local match is required", () => {
+    expect(
+      runModel(appropriation({ requiresLocalMatch: false })).warnings.some((w) =>
+        /intergovernmental agreement/.test(w)
+      )
+    ).toBe(false);
+  });
+
+  it("scales with resident count in per-resident mode", () => {
+    const perResident: ModelInputs = {
+      ...DEFAULT_INPUTS,
+      annualAttritionRate: 0,
+      gme: {
+        ...DEFAULT_INPUTS.gme,
+        medicaid: { ...DEFAULT_INPUTS.gme.medicaid, mode: "perResident", perResidentAmount: 50_000 },
+      },
+    };
+    expect(
+      runModel(perResident).steadyState.benefits.find((b) => b.key === "medicaid")!.amount
+    ).toBeCloseTo(24 * 50_000, 6);
   });
 });
 

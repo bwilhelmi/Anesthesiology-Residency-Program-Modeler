@@ -77,6 +77,10 @@ export function App() {
     setInputs((i) => ({ ...i, supervision: { ...i.supervision, ...p } }));
   const patchProg = (p: Partial<ModelInputs["program"]>) =>
     setInputs((i) => ({ ...i, program: { ...i.program, ...p } }));
+  const patchRetention = (p: Partial<ModelInputs["retention"]>) =>
+    setInputs((i) => ({ ...i, retention: { ...i.retention, ...p } }));
+  const patchCall = (p: Partial<ModelInputs["callCoverage"]>) =>
+    setInputs((i) => ({ ...i, callCoverage: { ...i.callCoverage, ...p } }));
   const patchProjection = (p: Partial<ModelInputs["projection"]>) =>
     setInputs((i) => ({ ...i, projection: { ...i.projection, ...p } }));
   const patchEff = (p: Partial<ModelInputs["efficiency"]>) =>
@@ -378,6 +382,7 @@ export function App() {
             />
             <ChoiceField
               label="State Medicaid GME mechanism"
+              cite={[3, 4]}
               help="States differ in kind, not just amount: some pay per resident, some direct a fixed appropriation to a hospital regardless of how many residents it trains."
               value={inputs.gme.medicaid.mode}
               onChange={(v) => patchMedicaid({ mode: v })}
@@ -410,6 +415,7 @@ export function App() {
                 <NumberField
                   label="Annual Medicaid GME appropriation to this hospital"
                   help="A fixed pool, independent of resident count."
+                  cite={[3]}
                   value={inputs.gme.medicaid.annualAppropriationTotal}
                   onChange={(v) =>
                     patchMedicaid({ annualAppropriationTotal: Math.max(0, v) })
@@ -480,6 +486,34 @@ export function App() {
               prefix="$"
               step={10000}
             />
+            <div className="grid-2">
+              <NumberField
+                label="Resident liability / yr"
+                help="Institutional professional-liability allocation per resident."
+                value={inputs.program.residentLiabilityAnnual}
+                onChange={(v) => patchProg({ residentLiabilityAnnual: Math.max(0, v) })}
+                prefix="$"
+                step={500}
+              />
+              <NumberField
+                label="GME office overhead / resident / yr"
+                help="DIO, GMEC, and GME-office allocation required by the ACGME Institutional Requirements."
+                value={inputs.program.gmeInstitutionalOverheadPerResident}
+                onChange={(v) =>
+                  patchProg({ gmeInstitutionalOverheadPerResident: Math.max(0, v) })
+                }
+                prefix="$"
+                step={1000}
+              />
+            </div>
+            <NumberField
+              label="Per-resident fees / yr"
+              help="ERAS/NRMP share, in-training exam, ABA BASIC and board fees, training licenses, ACLS/PALS."
+              value={inputs.program.perResidentFeesAnnual}
+              onChange={(v) => patchProg({ perResidentFeesAnnual: Math.max(0, v) })}
+              prefix="$"
+              step={500}
+            />
             <NumberField
               label="Participating-site support / yr (net)"
               help="Net affiliation-agreement payments. Positive = the sponsor pays participating sites; negative = the sponsor is paid for residents rotating in."
@@ -504,6 +538,72 @@ export function App() {
               max={0.2}
               format={(v) => `${(v * 100).toFixed(1)}% FTE`}
             />
+          </Section>
+
+          <Section
+            title="Workforce pipeline & call"
+            subtitle="Avoided costs, not revenue"
+            defaultOpen={false}
+          >
+            <ToggleField
+              label="Count the retention pipeline"
+              help="Graduates hired by the hospital or its group. Valued as the recruiting, signing, and locum-bridge cost their hire avoids — an avoided cost, never revenue."
+              value={inputs.retention.enabled}
+              onChange={(v) => patchRetention({ enabled: v })}
+            />
+            {inputs.retention.enabled && (
+              <>
+                <SliderField
+                  label="Share of graduates retained"
+                  help="Localize this. A program built to feed its own department typically claims a third; one that trains for the region claims less."
+                  value={inputs.retention.retentionRate}
+                  onChange={(v) => patchRetention({ retentionRate: v })}
+                />
+                <NumberField
+                  label="Avoided cost per retained hire"
+                  help="Recruiter fee, signing bonus, and the locum bridge a vacancy would otherwise need."
+                  cite={[11]}
+                  value={inputs.retention.avoidedCostPerRetainedHire}
+                  onChange={(v) =>
+                    patchRetention({ avoidedCostPerRetainedHire: Math.max(0, v) })
+                  }
+                  prefix="$"
+                  step={25_000}
+                />
+                <NumberField
+                  label="Years to recognize the avoided cost"
+                  help="Spread across this many years starting at graduation. 1 = the graduation year only."
+                  value={inputs.retention.benefitRecognitionYears}
+                  onChange={(v) =>
+                    patchRetention({ benefitRecognitionYears: Math.max(1, Math.round(v)) })
+                  }
+                  min={1}
+                  max={5}
+                />
+              </>
+            )}
+            <ToggleField
+              label="Count overnight in-house call coverage"
+              help="Value of overnight coverage that would otherwise be CRNA call stipends/OT or locum nights. Do NOT enable this if your coverage FTEs already include call — it would count the same nights twice."
+              value={inputs.callCoverage.enabled}
+              onChange={(v) => patchCall({ enabled: v })}
+            />
+            {inputs.callCoverage.enabled && (
+              <div className="grid-2">
+                <NumberField
+                  label="Nights covered / yr"
+                  value={inputs.callCoverage.nightsPerYearCovered}
+                  onChange={(v) => patchCall({ nightsPerYearCovered: Math.max(0, v) })}
+                />
+                <NumberField
+                  label="Avoided cost per night"
+                  value={inputs.callCoverage.avoidedCostPerNight}
+                  onChange={(v) => patchCall({ avoidedCostPerNight: Math.max(0, v) })}
+                  prefix="$"
+                  step={250}
+                />
+              </div>
+            )}
           </Section>
 
           <Section

@@ -9,7 +9,7 @@
  */
 
 import { loaded } from "./clinical";
-import type { ModelInputs, SalaryInputs } from "./types";
+import type { ModelInputs, ProgramCostInputs, SalaryInputs } from "./types";
 
 /** Cost of leadership protected time (PD + APD), valued at anesthesiologist rate. */
 export function leadershipCost(inputs: ModelInputs): number {
@@ -47,6 +47,20 @@ export function loadedResidentCost(salaries: SalaryInputs): number {
 /** Total resident stipend + benefits cost for a headcount of residents. */
 export function residentSalaryCost(salaries: SalaryInputs, totalResidents: number): number {
   return loadedResidentCost(salaries) * totalResidents;
+}
+
+/**
+ * Recurring cost that scales strictly with headcount, per resident per year:
+ * professional liability, the GME institutional overhead allocation the ACGME
+ * Institutional Requirements oblige a sponsoring institution to carry, and the
+ * per-resident fee stack (ERAS/NRMP, ITE, ABA, licensure, certifications).
+ */
+export function perResidentProgramCost(program: ProgramCostInputs): number {
+  return (
+    Math.max(0, program.residentLiabilityAnnual) +
+    Math.max(0, program.gmeInstitutionalOverheadPerResident) +
+    Math.max(0, program.perResidentFeesAnnual)
+  );
 }
 
 /**
