@@ -18,10 +18,12 @@ import {
   totalCoverageFte,
 } from "./clinical";
 import {
+  MATURE_PROGRAM_YEAR,
   MEDICAL_DIRECTION_CONCURRENCY_LIMIT,
   TEACHING_ANESTHESIA_CONCURRENCY_LIMIT,
 } from "./constants";
-import { directGme, marginalIme, medicaidGme } from "./gme";
+import { gmeFundingTimeline, medicaidGme } from "./gme";
+import type { GmeYearFte, GmeYearFunding } from "./gme";
 import { annualProgramSupportCost, loadedResidentCost, residentSalaryCost } from "./program";
 import type {
   LineItem,
@@ -52,11 +54,39 @@ export function residentsInProgramYear(
   return out;
 }
 
-/** Compute benefits and costs for a specific resident cohort composition. */
+/**
+ * Medicare-countable resident FTE for one program year.
+ *
+ * In this phase countable FTE is simply headcount; P2 splits it by the share of
+ * the year actually trained at the sponsor hospital.
+ */
+export function countableFteForYear(
+  programYear: number,
+  residentsByYear: Record<ResidencyYear, number>
+): GmeYearFte {
+  const byLevel: Record<ResidencyYear, number> = {
+    PGY1: residentsByYear.PGY1 ?? 0,
+    PGY2: residentsByYear.PGY2 ?? 0,
+    PGY3: residentsByYear.PGY3 ?? 0,
+    PGY4: residentsByYear.PGY4 ?? 0,
+  };
+  const total = RESIDENCY_YEARS.reduce((s, y) => s + byLevel[y], 0);
+  return { programYear, byLevel, dgmeFte: total, imeFte: total };
+}
+
+/**
+ * Compute benefits and costs for a specific resident cohort composition.
+ *
+ * `funding` carries the year's Medicare determination (cap, rolling average,
+ * ratio cap), which is inherently a function of the program's history. When it
+ * is omitted the year is priced in isolation, as if no prior years existed —
+ * fine for a single-year inspection, but runModel() always supplies it.
+ */
 export function computeYear(
   inputs: ModelInputs,
   programYear: number,
-  residentsByYear: Record<ResidencyYear, number>
+  residentsByYear: Record<ResidencyYear, number>,
+  funding?: GmeYearFunding
 ): YearResult {
   const totalResidents = RESIDENCY_YEARS.reduce(
     (s, y) => s + (residentsByYear[y] ?? 0),
@@ -67,9 +97,14 @@ export function computeYear(
 
   /* ----------------------------- Benefits ------------------------------- */
 
-  const dgme = directGme(totalFte, inputs.gme);
-  const ime = marginalIme(totalFte, inputs.gme);
-  const medicaid = medicaidGme(totalFte, inputs.gme);
+  const gmeFunding =
+    funding ??
+    gmeFundingTimeline(inputs.gme, [countableFteForYear(programYear, residentsByYear)])[0];
+  warnings.push(...gmeFunding.warnings);
+
+  const dgme = gmeFunding.dgme;
+  const ime = gmeFunding.ime;
+  const medicaid = medicaidGme(totalFte, inputs.gme.medicaid);
 
   /*
    * Coverage, labor value, and the teaching margin loss all move together, so
@@ -134,19 +169,23 @@ export function computeYear(
       label: "Medicare Direct GME (DGME)",
       amount: dgme,
       detail:
-        "PRA × fundable resident FTE × Medicare inpatient share (capped by FTE headroom).",
+        `PRA × ${round1(gmeFunding.paymentDgmeFte)} payment FTE × Medicare inpatient share. ` +
+        describeCap(gmeFunding),
     },
     {
       key: "ime",
       label: "Medicare Indirect Medical Education (IME)",
       amount: ime,
-      detail: "Marginal IME add-on on Medicare inpatient PPS payments (nonlinear in resident-to-bed ratio).",
+      detail: `Marginal IME add-on on Medicare inpatient operating payments (nonlinear in the resident-to-bed ratio, here ${gmeFunding.imeRatio.toFixed(3)}).`,
     },
     {
       key: "medicaid",
       label: "Medicaid GME support",
       amount: medicaid,
-      detail: "State Medicaid per-resident support (not subject to the Medicare cap).",
+      detail:
+        inputs.gme.medicaid.mode === "appropriation"
+          ? "State Medicaid GME appropriation directed to this hospital — a fixed pool, independent of resident count."
+          : "State Medicaid per-resident support (not subject to the Medicare cap).",
     },
     {
       key: "labor",
@@ -164,6 +203,18 @@ export function computeYear(
       detail: "Value residents deliver on required non-anesthesia rotations (mainly the intern year).",
     },
   ];
+
+  // Capital IME is off unless the hospital's capital PPS payments are supplied,
+  // so an estimate never gains a line the user did not ask for.
+  if (gmeFunding.capitalIme > 0) {
+    benefits.splice(2, 0, {
+      key: "capitalime",
+      label: "Medicare capital IME add-on",
+      amount: gmeFunding.capitalIme,
+      detail:
+        "Marginal capital IME on Medicare capital PPS payments: e^(0.2822 × resident-to-bed ratio) − 1 (42 CFR 412.322).",
+    });
+  }
 
   /* ------------------------------- Costs -------------------------------- */
 
@@ -228,18 +279,31 @@ export function computeYear(
   };
 }
 
-/** Run the full model: ramp years 1..4 plus the steady-state year. */
+/**
+ * Run the full model.
+ *
+ * Medicare funding depends on the program's history — a cap built in year 5, a
+ * three-year rolling average, a ratio that cannot outrun last year's — so the
+ * years are computed as one sequence rather than independently. The reported
+ * "steady state" is the first MATURE year (program year 6), where the cap, the
+ * rolling average, and the ratio cap all bind; years 1–4 are the ramp.
+ */
 export function runModel(inputs: ModelInputs): ModelResult {
-  const rampYears: YearResult[] = [];
-  for (let y = 1; y <= RESIDENCY_YEARS.length; y++) {
-    rampYears.push(computeYear(inputs, y, residentsInProgramYear(inputs, y)));
+  const cohorts: Record<ResidencyYear, number>[] = [];
+  const fteByYear: GmeYearFte[] = [];
+  for (let y = 1; y <= MATURE_PROGRAM_YEAR; y++) {
+    const cohort = residentsInProgramYear(inputs, y);
+    cohorts.push(cohort);
+    fteByYear.push(countableFteForYear(y, cohort));
   }
 
-  const steadyState = computeYear(
-    inputs,
-    RESIDENCY_YEARS.length,
-    residentsInProgramYear(inputs, RESIDENCY_YEARS.length)
+  const funding = gmeFundingTimeline(inputs.gme, fteByYear);
+  const allYears = cohorts.map((cohort, i) =>
+    computeYear(inputs, i + 1, cohort, funding[i])
   );
+
+  const rampYears = allYears.slice(0, RESIDENCY_YEARS.length);
+  const steadyState = allYears[MATURE_PROGRAM_YEAR - 1];
 
   // Cumulative net across the four ramp years, less one-time startup cost.
   const rampNet = sum(rampYears.map((r) => r.netValue));
@@ -252,7 +316,7 @@ export function runModel(inputs: ModelInputs): ModelResult {
     fiveYearCumulativeNet,
     steadyStateBenefits: steadyState.benefits,
     steadyStateCosts: steadyState.costs,
-    warnings: dedupe([...rampYears, steadyState].flatMap((y) => y.warnings)),
+    warnings: dedupe(allYears.flatMap((y) => y.warnings)),
   };
 }
 
@@ -277,6 +341,18 @@ function dedupe(xs: string[]): string[] {
 
 function round1(x: number): string {
   return x.toFixed(1);
+}
+
+/** Plain-language note on what the FTE cap did to this year's DGME. */
+function describeCap(funding: GmeYearFunding): string {
+  if (funding.cap === null) {
+    return "No FTE cap applies yet — the program is inside its cap-building window (42 CFR 413.79(e)(1)).";
+  }
+  const rolling =
+    Math.abs(funding.paymentDgmeFte - funding.fundableDgmeFte) > 1e-9
+      ? ` Paid on the three-year rolling average (42 CFR 413.79(d)), not this year's ${round1(funding.fundableDgmeFte)} fundable FTE.`
+      : "";
+  return `Fundable FTE capped at ${round1(funding.cap)}.${rolling}`;
 }
 
 function fmt(x: number): string {

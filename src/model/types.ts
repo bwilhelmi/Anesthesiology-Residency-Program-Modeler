@@ -75,26 +75,73 @@ export interface AnesthetizingLocations {
   utilizationRate: number;
 }
 
+/**
+ * Which Medicare GME world the hospital lives in. This is the single largest
+ * real-world lever in the model and cannot be expressed as a boolean: a hospital
+ * that has never trained residents BUILDS a cap out of this program, while an
+ * established teaching hospital inherits one fixed decades ago.
+ */
+export type HospitalGmeScenario =
+  /** No existing FTE cap or PRA; the cap is built by this program (42 CFR 413.79(e)). */
+  | "newTeachingHospital"
+  /** An established teaching hospital with unused room under its cap. */
+  | "existingUnderCap"
+  /** Cap fully used; only awarded slots create funded FTE. */
+  | "atCap";
+
+/** How a state Medicaid program pays GME, if at all. */
+export type MedicaidGmeMode = "none" | "perResident" | "appropriation";
+
+/** State Medicaid GME support — mechanism differs materially by state. */
+export interface MedicaidGmeInputs {
+  mode: MedicaidGmeMode;
+  /** perResident mode: dollars per resident FTE per year. */
+  perResidentAmount: number;
+  /**
+   * appropriation mode: a fixed annual pool directed to this hospital,
+   * independent of how many residents it trains.
+   */
+  annualAppropriationTotal: number;
+  /**
+   * appropriation mode: the payment depends on a funded non-federal share
+   * (e.g. an Arizona AHCCCS intergovernmental agreement). Without a committed
+   * IGA sponsor the money is not real.
+   */
+  requiresLocalMatch: boolean;
+}
+
 /** Medicare / Medicaid graduate medical education (GME) funding inputs. */
 export interface GmeFundingInputs {
+  scenario: HospitalGmeScenario;
   /**
-   * Is the hospital already at (or above) its Medicare direct-GME / IME
-   * resident FTE cap? If true, incremental residents generate NO new Medicare
-   * GME revenue. A hospital with only partial room should leave this false and
-   * express the remaining slots via capHeadroomFte instead.
-   */
-  atMedicareCap: boolean;
-  /**
-   * Number of resident FTE slots still available under the cap (used only when
-   * atMedicareCap is false). Incremental residents above this count generate no
-   * new Medicare GME.
+   * existingUnderCap only: resident FTE slots still available under the cap.
+   * New residents above this count generate no new Medicare GME.
    */
   capHeadroomFte: number;
   /**
+   * New cap slots awarded to the hospital under CAA 2021 §126 (1,000 slots
+   * phased FY2023–FY2027) or CAA 2023 §4122 (200 slots, FY2026, at least 100
+   * psychiatry-directed), via the CMS application process. Additional headroom
+   * under existingUnderCap; the ONLY source of funded FTE at cap.
+   */
+  awardedNewSlots: number;
+  /**
    * Medicare Direct GME Per-Resident Amount (PRA) for the hospital. This is
-   * hospital-specific, set historically and trended forward by CMS.
+   * hospital-specific, set historically and trended forward by CMS. Used for
+   * the two established-hospital scenarios; a new teaching hospital's PRA is
+   * derived from the two fields below instead.
    */
   directGmePerResidentAmount: number;
+  /**
+   * newTeachingHospital only: the hospital's own projected allowable GME cost
+   * per FTE in the base period.
+   */
+  newHospitalProjectedCostPerFte: number;
+  /**
+   * newTeachingHospital only: the locality-adjusted weighted mean PRA of
+   * nearby teaching hospitals, which caps the new hospital's PRA.
+   */
+  localityWeightedMeanPra: number;
   /**
    * Medicare share of inpatient days (FFS + Medicare Advantage) — the Medicare
    * utilization ratio used to apportion Direct GME to the Medicare program.
@@ -111,6 +158,12 @@ export interface GmeFundingInputs {
    * DGME, this one is multiplied by the IME percentage.
    */
   medicareInpatientOperatingPayments: number;
+  /**
+   * Annual Medicare inpatient CAPITAL PPS payments to the hospital, the base
+   * for the capital IME add-on (42 CFR 412.322). Leave at 0 to disable the
+   * capital IME line.
+   */
+  medicareCapitalPayments: number;
   /** Available beds (denominator of the resident-to-bed ratio for IME). */
   availableBeds: number;
   /**
@@ -120,10 +173,18 @@ export interface GmeFundingInputs {
    */
   existingResidentFte: number;
   /**
-   * State Medicaid GME support per resident FTE per year. Highly state-
-   * dependent; 0 in states without a Medicaid GME program.
+   * Apply the IME resident-to-bed ratio cap (42 CFR 412.105(a)(1)): the ratio
+   * used in a year may not exceed the prior year's, except for new programs in
+   * their growth window. Realistic; leave on.
    */
-  medicaidGmePerResident: number;
+  applyImeRatioCap: boolean;
+  /**
+   * Apply the three-year rolling average FTE count (42 CFR 413.79(d)), with
+   * the new-program exclusion during the growth window. Realistic; leave on.
+   */
+  applyRollingAverage: boolean;
+  /** State Medicaid GME support. */
+  medicaid: MedicaidGmeInputs;
 }
 
 /**

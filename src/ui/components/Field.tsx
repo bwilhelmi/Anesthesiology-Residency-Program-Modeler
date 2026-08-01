@@ -148,6 +148,51 @@ export function ToggleField({
   );
 }
 
+/**
+ * A small set of mutually exclusive choices, rendered as a radio group rather
+ * than a select: the options carry consequences the user should be able to read
+ * without opening a menu.
+ */
+export function ChoiceField<T extends string>({
+  label,
+  help,
+  value,
+  options,
+  onChange,
+}: BaseProps & {
+  value: T;
+  options: ReadonlyArray<{ value: T; label: string; help?: string }>;
+  onChange: (v: T) => void;
+}) {
+  const name = React.useId();
+  return (
+    <fieldset className="field field-choice">
+      <legend className="field-label">{label}</legend>
+      <div className="choice-options">
+        {options.map((o) => (
+          <label
+            key={o.value}
+            className={`choice-option ${value === o.value ? "selected" : ""}`}
+          >
+            <input
+              type="radio"
+              name={name}
+              value={o.value}
+              checked={value === o.value}
+              onChange={() => onChange(o.value)}
+            />
+            <span className="choice-body">
+              <span className="choice-label">{o.label}</span>
+              {o.help && <span className="choice-help">{o.help}</span>}
+            </span>
+          </label>
+        ))}
+      </div>
+      {help && <span className="field-help">{help}</span>}
+    </fieldset>
+  );
+}
+
 /** A collapsible titled group of fields. */
 export function Section({
   title,

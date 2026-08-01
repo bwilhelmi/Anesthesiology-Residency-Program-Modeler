@@ -1,11 +1,23 @@
 import { describe, it, expect } from "vitest";
-import { DEFAULT_INPUTS, IME_EXPONENT, IME_MULTIPLIER } from "./constants";
 import {
+  CAP_BUILDING_WINDOW_YEARS,
+  DEFAULT_INPUTS,
+  IME_EXPONENT,
+  IME_MULTIPLIER,
+  MATURE_PROGRAM_YEAR,
+} from "./constants";
+import {
+  buildPermanentCap,
+  capForYear,
   directGme,
+  effectivePra,
   fundableFte,
+  gmeFundingTimeline,
   imePercentage,
+  marginalCapitalIme,
   marginalIme,
   medicaidGme,
+  type GmeYearFte,
 } from "./gme";
 import {
   coverageFteForYear,
@@ -23,7 +35,7 @@ import {
   runModel,
   steadyStateCoverageFte,
 } from "./model";
-import type { GmeFundingInputs, ModelInputs } from "./types";
+import type { GmeFundingInputs, ModelInputs, ResidencyYear } from "./types";
 import { RESIDENCY_YEARS } from "./types";
 
 const gme = (over: Partial<GmeFundingInputs> = {}): GmeFundingInputs => ({
@@ -31,39 +43,96 @@ const gme = (over: Partial<GmeFundingInputs> = {}): GmeFundingInputs => ({
   ...over,
 });
 
-describe("GME: cap logic", () => {
-  it("funds all FTE when under cap with ample headroom", () => {
-    expect(fundableFte(10, gme({ atMedicareCap: false, capHeadroomFte: 24 }))).toBe(10);
+/** A mature-year context: past the growth window, no prior-year ratio recorded. */
+const matureCtx = { programYear: MATURE_PROGRAM_YEAR, priorRatio: null };
+
+/** Countable FTE for a program year with `perClass` residents in `classes` levels. */
+const fteYear = (programYear: number, perClass: number, classes: number): GmeYearFte => {
+  const byLevel = { PGY1: 0, PGY2: 0, PGY3: 0, PGY4: 0 } as Record<ResidencyYear, number>;
+  for (let i = 0; i < Math.min(classes, RESIDENCY_YEARS.length); i++) {
+    byLevel[RESIDENCY_YEARS[i]] = perClass;
+  }
+  const total = RESIDENCY_YEARS.reduce((s, y) => s + byLevel[y], 0);
+  return { programYear, byLevel, dgmeFte: total, imeFte: total };
+};
+
+/** Program years 1..n for an evenly-sized program with no attrition. */
+const rampFte = (n: number, perClass: number): GmeYearFte[] =>
+  Array.from({ length: n }, (_, i) => fteYear(i + 1, perClass, i + 1));
+
+describe("GME: cap logic (P1.2)", () => {
+  it("applies no cap to a new teaching hospital inside its cap-building window", () => {
+    const g = gme({ scenario: "newTeachingHospital" });
+    expect(capForYear(g, 1, null)).toBeNull();
+    expect(capForYear(g, CAP_BUILDING_WINDOW_YEARS, 24)).toBeNull();
+    expect(fundableFte(18, g, { programYear: 3 })).toBe(18);
   });
 
-  it("funds only headroom when request exceeds it", () => {
-    expect(fundableFte(30, gme({ capHeadroomFte: 24 }))).toBe(24);
+  it("builds the permanent cap from the highest single program year × program length", () => {
+    // 6 per class, all four levels present in program year 5.
+    expect(buildPermanentCap(fteYear(5, 6, 4).byLevel)).toBe(24);
+    // Uneven classes: the LARGEST single training year sets the cap.
+    expect(buildPermanentCap({ PGY1: 8, PGY2: 6, PGY3: 6, PGY4: 6 })).toBe(32);
   });
 
-  it("funds nothing when at cap with no headroom", () => {
-    expect(fundableFte(10, gme({ atMedicareCap: true, capHeadroomFte: 0 }))).toBe(0);
+  it("binds the built cap from program year 6 onward", () => {
+    const g = gme({ scenario: "newTeachingHospital" });
+    expect(capForYear(g, MATURE_PROGRAM_YEAR, 24)).toBe(24);
+    expect(fundableFte(30, g, { programYear: MATURE_PROGRAM_YEAR, permanentCap: 24 })).toBe(24);
   });
 
-  it("funds nothing when at cap even if a stale headroom value remains", () => {
-    // The 'at cap' flag is authoritative and ignores the headroom field.
-    expect(fundableFte(10, gme({ atMedicareCap: true, capHeadroomFte: 24 }))).toBe(0);
+  it("funds only headroom plus awarded slots at an existing under-cap hospital", () => {
+    const g = gme({ scenario: "existingUnderCap", capHeadroomFte: 10, awardedNewSlots: 0 });
+    expect(fundableFte(24, g, { programYear: 1 })).toBe(10);
+    expect(fundableFte(6, g, { programYear: 1 })).toBe(6);
+    const withSlots = gme({
+      scenario: "existingUnderCap",
+      capHeadroomFte: 10,
+      awardedNewSlots: 5,
+    });
+    expect(fundableFte(24, withSlots, { programYear: 1 })).toBe(15);
+  });
+
+  it("funds only awarded slots at cap (P1.7)", () => {
+    const g = gme({ scenario: "atCap", capHeadroomFte: 24, awardedNewSlots: 5 });
+    // A stale headroom value is ignored: at cap, awarded slots are the only source.
+    expect(fundableFte(24, g, { programYear: 1 })).toBe(5);
+    expect(fundableFte(24, gme({ scenario: "atCap", awardedNewSlots: 0 }), { programYear: 1 }))
+      .toBe(0);
+  });
+});
+
+describe("GME: per-resident amount (P1.6)", () => {
+  it("uses the lesser of projected cost and locality mean PRA for a new hospital", () => {
+    const g = gme({
+      scenario: "newTeachingHospital",
+      newHospitalProjectedCostPerFte: 120_000,
+      localityWeightedMeanPra: 105_000,
+      directGmePerResidentAmount: 999_999,
+    });
+    expect(effectivePra(g)).toBe(105_000);
+    expect(directGme(10, { ...g, medicareInpatientShare: 0.4 })).toBeCloseTo(420_000, 5);
+  });
+
+  it("uses the hospital's own PRA in the established scenarios", () => {
+    const g = gme({ scenario: "existingUnderCap", directGmePerResidentAmount: 110_000 });
+    expect(effectivePra(g)).toBe(110_000);
   });
 });
 
 describe("GME: Direct GME", () => {
   it("computes PRA x FTE x Medicare share", () => {
     const g = gme({
+      scenario: "existingUnderCap",
       directGmePerResidentAmount: 100_000,
       medicareInpatientShare: 0.4,
-      capHeadroomFte: 100,
     });
     // 100k * 10 FTE * 0.4 = 400k
     expect(directGme(10, g)).toBeCloseTo(400_000, 5);
   });
 
-  it("is zero at cap with no headroom", () => {
-    const g = gme({ atMedicareCap: true, capHeadroomFte: 0 });
-    expect(directGme(10, g)).toBe(0);
+  it("is zero on zero payment FTE", () => {
+    expect(directGme(0, gme())).toBe(0);
   });
 });
 
@@ -85,26 +154,134 @@ describe("GME: IME", () => {
       existingResidentFte: 0,
       availableBeds: 300,
       medicareInpatientOperatingPayments: 50_000_000,
-      capHeadroomFte: 1000,
     });
-    const im10 = marginalIme(10, g);
-    const im20 = marginalIme(20, g);
+    const im10 = marginalIme(10, g, matureCtx);
+    const im20 = marginalIme(20, g, matureCtx);
     expect(im10).toBeGreaterThan(0);
     expect(im20).toBeGreaterThan(im10);
     // Diminishing returns: doubling residents less than doubles IME.
     expect(im20).toBeLessThan(2 * im10);
   });
 
-  it("respects the cap in the marginal calc", () => {
-    const capped = gme({ atMedicareCap: true, capHeadroomFte: 0 });
-    expect(marginalIme(10, capped)).toBe(0);
+  it("is zero on zero funded FTE", () => {
+    expect(marginalIme(0, gme(), matureCtx)).toBe(0);
+  });
+
+  it("clips the ratio to the prior year outside the growth window (P1.4)", () => {
+    const g = gme({ availableBeds: 350, existingResidentFte: 0 });
+    const priorRatio = 12 / 350;
+    const clipped = marginalIme(24, g, {
+      programYear: MATURE_PROGRAM_YEAR,
+      priorRatio,
+    });
+    expect(clipped).toBeCloseTo(marginalIme(12, g, matureCtx), 6);
+    // Inside the growth window the same jump is not clipped.
+    expect(marginalIme(24, g, { programYear: 3, priorRatio })).toBeGreaterThan(clipped);
+    // And the cap can be switched off entirely.
+    expect(
+      marginalIme(24, { ...g, applyImeRatioCap: false }, {
+        programYear: MATURE_PROGRAM_YEAR,
+        priorRatio,
+      })
+    ).toBeGreaterThan(clipped);
+  });
+
+  it("prices capital IME on the exponential form when capital payments exist (P1.5)", () => {
+    const g = gme({ availableBeds: 350, existingResidentFte: 0, medicareCapitalPayments: 8_000_000 });
+    const r = 24 / 350;
+    const expected = 8_000_000 * (Math.exp(0.2822 * r) - 1);
+    expect(marginalCapitalIme(24, g, matureCtx)).toBeCloseTo(expected, 6);
+  });
+
+  it("leaves capital IME off by default", () => {
+    expect(marginalCapitalIme(24, gme(), matureCtx)).toBe(0);
+    expect(DEFAULT_INPUTS.gme.medicareCapitalPayments).toBe(0);
+  });
+});
+
+describe("GME: funding timeline (P1.3, P1.8)", () => {
+  it("pays a new hospital on actual FTE through the ramp, then caps at 24", () => {
+    const g = gme({ scenario: "newTeachingHospital" });
+    const timeline = gmeFundingTimeline(g, rampFte(MATURE_PROGRAM_YEAR, 6));
+    expect(timeline.map((t) => t.fundableDgmeFte)).toEqual([6, 12, 18, 24, 24, 24]);
+    expect(timeline[MATURE_PROGRAM_YEAR - 1].cap).toBe(24);
+    expect(timeline.slice(0, CAP_BUILDING_WINDOW_YEARS).every((t) => t.cap === null)).toBe(true);
+  });
+
+  it("excludes the growth window from the rolling average, then averages (P1.3)", () => {
+    const timeline = gmeFundingTimeline(
+      gme({ scenario: "newTeachingHospital" }),
+      rampFte(MATURE_PROGRAM_YEAR, 6)
+    );
+    // Years 1-5 pay on the actual count: a ramping program is not dragged down
+    // by a trailing average it never catches up to.
+    expect(timeline.slice(0, 5).map((t) => t.paymentDgmeFte)).toEqual([6, 12, 18, 24, 24]);
+    // Year 6 averages years 4-6, which have all stabilised at 24.
+    expect(timeline[5].paymentDgmeFte).toBeCloseTo(24, 10);
+  });
+
+  it("makes the rolling average trail when headcount is still changing", () => {
+    const years = [...rampFte(MATURE_PROGRAM_YEAR, 6)];
+    // A larger class arrives in year 6: 6,12,18,24,24, then 30.
+    years[5] = { ...years[5], dgmeFte: 30, imeFte: 30 };
+    const timeline = gmeFundingTimeline(
+      gme({ scenario: "newTeachingHospital" }),
+      years
+    );
+    // Capped at 24 first, so the average of 24,24,24 is still 24 — the cap binds
+    // before the average does.
+    expect(timeline[5].paymentDgmeFte).toBeCloseTo(24, 10);
+
+    const uncapped = gmeFundingTimeline(
+      gme({ scenario: "existingUnderCap", capHeadroomFte: 100 }),
+      years
+    );
+    // 24, 24, 30 -> 26, a two-year trail behind the actual 30.
+    expect(uncapped[5].paymentDgmeFte).toBeCloseTo(26, 10);
+  });
+
+  it("warns and funds only the headroom at an existing under-cap hospital (P1.8)", () => {
+    const timeline = gmeFundingTimeline(
+      gme({ scenario: "existingUnderCap", capHeadroomFte: 10, awardedNewSlots: 0 }),
+      rampFte(MATURE_PROGRAM_YEAR, 6)
+    );
+    expect(timeline[MATURE_PROGRAM_YEAR - 1].fundableDgmeFte).toBe(10);
+    expect(timeline.flatMap((t) => t.warnings).some((w) => /exceeds the hospital's cap headroom/.test(w)))
+      .toBe(true);
+  });
+
+  it("funds exactly the awarded slots at cap", () => {
+    const timeline = gmeFundingTimeline(
+      gme({ scenario: "atCap", awardedNewSlots: 5 }),
+      rampFte(MATURE_PROGRAM_YEAR, 6)
+    );
+    expect(timeline[MATURE_PROGRAM_YEAR - 1].fundableDgmeFte).toBe(5);
+  });
+
+  it("lets a new program's ratio grow through the ramp, then holds it", () => {
+    const timeline = gmeFundingTimeline(
+      gme({ scenario: "newTeachingHospital", availableBeds: 350, existingResidentFte: 0 }),
+      rampFte(MATURE_PROGRAM_YEAR, 6)
+    );
+    const ratios = timeline.map((t) => t.imeRatio);
+    for (let i = 1; i < CAP_BUILDING_WINDOW_YEARS - 1; i++) {
+      expect(ratios[i]).toBeGreaterThan(ratios[i - 1]);
+    }
+    expect(ratios[MATURE_PROGRAM_YEAR - 1]).toBeCloseTo(24 / 350, 10);
   });
 });
 
 describe("GME: Medicaid", () => {
   it("is a flat per-resident amount, not capped by Medicare", () => {
-    const g = gme({ medicaidGmePerResident: 50_000 });
-    expect(medicaidGme(24, g)).toBe(1_200_000);
+    expect(
+      medicaidGme(24, { ...DEFAULT_INPUTS.gme.medicaid, mode: "perResident", perResidentAmount: 50_000 })
+    ).toBe(1_200_000);
+  });
+
+  it("pays nothing in states without a program", () => {
+    expect(
+      medicaidGme(24, { ...DEFAULT_INPUTS.gme.medicaid, mode: "none", perResidentAmount: 50_000 })
+    ).toBe(0);
   });
 });
 
@@ -337,16 +514,27 @@ describe("Full model", () => {
     expect(y4.totalBenefits).toBeGreaterThan(y1.totalBenefits);
   });
 
-  it("at-cap program loses Medicare GME benefits (lower net than under-cap)", () => {
-    const underCap = runModel(DEFAULT_INPUTS);
+  it("at-cap program loses Medicare GME benefits (lower net than a new teaching hospital)", () => {
+    const newHospital = runModel(DEFAULT_INPUTS);
     const atCap: ModelInputs = {
       ...DEFAULT_INPUTS,
-      gme: { ...DEFAULT_INPUTS.gme, atMedicareCap: true, capHeadroomFte: 0 },
+      gme: { ...DEFAULT_INPUTS.gme, scenario: "atCap", awardedNewSlots: 0 },
     };
     const capped = runModel(atCap);
     expect(capped.steadyState.totalBenefits).toBeLessThan(
-      underCap.steadyState.totalBenefits
+      newHospital.steadyState.totalBenefits
     );
+    expect(capped.steadyState.benefits.find((b) => b.key === "dgme")!.amount).toBe(0);
+    expect(capped.steadyState.benefits.find((b) => b.key === "ime")!.amount).toBe(0);
+    expect(capped.warnings.some((w) => w.includes("CAA 2021 §126"))).toBe(true);
+  });
+
+  it("reports the mature year (post cap-building) as steady state", () => {
+    const r = runModel(DEFAULT_INPUTS);
+    expect(r.steadyState.programYear).toBe(MATURE_PROGRAM_YEAR);
+    expect(r.steadyState.totalResidents).toBe(24);
+    // The cap a new teaching hospital builds for itself is exactly its complement.
+    expect(r.steadyState.benefits.find((b) => b.key === "dgme")!.amount).toBeGreaterThan(0);
   });
 
   it("steady-state line items sum to the reported totals", () => {

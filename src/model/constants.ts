@@ -23,6 +23,38 @@ export const IME_MULTIPLIER = 1.35;
 export const IME_EXPONENT = 0.405;
 
 /**
+ * Capital IME takes an exponential form rather than the operating power form:
+ *   capitalIME% = e^(0.2822 * r) - 1
+ * 42 CFR 412.322 (indirect medical education adjustment factor, capital PPS).
+ */
+export const CAPITAL_IME_EXPONENT = 0.2822;
+
+/**
+ * Anesthesiology's minimum accredited length (ACGME), which also equals its
+ * initial residency period for DGME weighting. A new teaching hospital's
+ * permanent FTE cap is the highest single program year's FTE count multiplied
+ * by this figure — 42 CFR 413.79(e)(1).
+ */
+export const PROGRAM_LENGTH_YEARS = 4;
+
+/**
+ * The new-program growth window: program years 1 through 5. During it a new
+ * teaching hospital has no cap yet (42 CFR 413.79(e)(1)), FTEs in a new program
+ * are excluded from the three-year rolling average (42 CFR 413.79(d)(5)), and
+ * the IME resident-to-bed ratio is not clipped to the prior year
+ * (42 CFR 412.105(f)(1)(v)). The rolling-average and ratio exceptions apply to
+ * new PROGRAMS, so they hold at established teaching hospitals too.
+ */
+export const CAP_BUILDING_WINDOW_YEARS = 5;
+
+/**
+ * The first program year in which the permanent cap, the rolling average, and
+ * the IME ratio cap all bind — i.e. the first year that shows mature-program
+ * economics rather than growth-window economics.
+ */
+export const MATURE_PROGRAM_YEAR = CAP_BUILDING_WINDOW_YEARS + 1;
+
+/**
  * Direct-GME FTE weighting during a resident's initial residency period (IRP).
  * Anesthesiology's IRP (4 years) equals the program length, so residents are
  * weighted at 1.0 throughout. (Residents past their IRP are weighted 0.5.)
@@ -121,14 +153,31 @@ export const DEFAULT_INPUTS: ModelInputs = {
     utilizationRate: 0.7,
   },
   gme: {
-    atMedicareCap: false,
+    // Most hospitals asking this question have never trained residents.
+    scenario: "newTeachingHospital",
     capHeadroomFte: 24,
+    awardedNewSlots: 0,
     directGmePerResidentAmount: 110_000,
+    // A new hospital's PRA is min(its own projected cost per FTE, the locality
+    // weighted mean PRA) — 42 CFR 413.77(e). Both defaults are national
+    // ballparks and are the single highest-leverage numbers in the model.
+    newHospitalProjectedCostPerFte: 145_000,
+    localityWeightedMeanPra: 120_000,
     medicareInpatientShare: 0.4,
     medicareInpatientOperatingPayments: 60_000_000,
+    // Off by default so adding the capital IME line never silently changes an
+    // existing estimate; set it to the hospital's capital PPS payments to model.
+    medicareCapitalPayments: 0,
     availableBeds: 350,
     existingResidentFte: 0,
-    medicaidGmePerResident: 0,
+    applyImeRatioCap: true,
+    applyRollingAverage: true,
+    medicaid: {
+      mode: "perResident",
+      perResidentAmount: 0,
+      annualAppropriationTotal: 0,
+      requiresLocalMatch: false,
+    },
   },
   supervision: {
     maxCrnaSupervisionRatio: MEDICAL_DIRECTION_CONCURRENCY_LIMIT,

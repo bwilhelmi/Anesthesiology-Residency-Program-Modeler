@@ -3,6 +3,7 @@ import {
   DEFAULT_INPUTS,
   RESIDENCY_YEARS,
   YEAR_LABELS,
+  effectivePra,
   runModel,
   staffedLocationDemand,
   steadyStateCoverageFte,
@@ -10,6 +11,7 @@ import {
   type ResidencyYear,
 } from "../model";
 import {
+  ChoiceField,
   NumberField,
   PercentField,
   Section,
@@ -22,7 +24,13 @@ import { HospitalPicker } from "./components/HospitalPicker";
 import { Bibliography } from "./components/References";
 import { currency, number } from "./format";
 
-const STORAGE_KEY = "anesthesia-residency-model-inputs-v1";
+/**
+ * Bumped whenever the input shape changes incompatibly. The restore below is a
+ * shallow merge, so a v1 payload would reinstate an entire stale `gme` object
+ * (with the old cap boolean and no Medicaid mode) and break the model — a new
+ * key retires those saves instead of half-restoring them.
+ */
+const STORAGE_KEY = "anesthesia-residency-model-inputs-v2";
 
 function loadInitial(): ModelInputs {
   try {
@@ -60,6 +68,11 @@ export function App() {
     setInputs((i) => ({ ...i, locations: { ...i.locations, ...p } }));
   const patchGme = (p: Partial<ModelInputs["gme"]>) =>
     setInputs((i) => ({ ...i, gme: { ...i.gme, ...p } }));
+  const patchMedicaid = (p: Partial<ModelInputs["gme"]["medicaid"]>) =>
+    setInputs((i) => ({
+      ...i,
+      gme: { ...i.gme, medicaid: { ...i.gme.medicaid, ...p } },
+    }));
   const patchSup = (p: Partial<ModelInputs["supervision"]>) =>
     setInputs((i) => ({ ...i, supervision: { ...i.supervision, ...p } }));
   const patchProg = (p: Partial<ModelInputs["program"]>) =>
@@ -223,38 +236,89 @@ export function App() {
               onApply={(a) =>
                 patchGme({
                   capHeadroomFte: a.capHeadroomFte,
-                  atMedicareCap: a.atMedicareCap,
+                  // A hospital in the CMS cost-report data is by definition an
+                  // existing teaching hospital; only its headroom is in question.
+                  scenario: a.atMedicareCap ? "atCap" : "existingUnderCap",
                   directGmePerResidentAmount: a.directGmePerResidentAmount,
                   availableBeds: a.availableBeds,
                   existingResidentFte: a.existingResidentFte,
                 })
               }
             />
-            <ToggleField
-              label="Hospital is at its Medicare resident cap"
-              help="At cap, residents above the headroom generate no new Medicare DGME/IME."
-              value={inputs.gme.atMedicareCap}
-              onChange={(v) => patchGme({ atMedicareCap: v })}
+            <ChoiceField
+              label="Hospital GME scenario"
+              help="The largest single lever in this model. A hospital that has never trained residents builds its own cap out of this program; an established one inherits a cap fixed decades ago."
+              value={inputs.gme.scenario}
+              onChange={(v) => patchGme({ scenario: v })}
+              options={[
+                {
+                  value: "newTeachingHospital",
+                  label: "New teaching hospital — no cap or PRA yet",
+                  help: "No cap applies during program years 1–5; the permanent cap is built from the year-5 complement (42 CFR 413.79(e)(1)).",
+                },
+                {
+                  value: "existingUnderCap",
+                  label: "Existing teaching hospital, room under the cap",
+                  help: "Funds residents up to the remaining headroom plus any awarded slots.",
+                },
+                {
+                  value: "atCap",
+                  label: "At cap — cap fully used",
+                  help: "Only awarded slots create funded FTE. Everything else trains at full cost.",
+                },
+              ]}
             />
-            <NumberField
-              label="Cap headroom (fundable resident FTE)"
-              help={
-                inputs.gme.atMedicareCap
-                  ? "Ignored while the hospital is at cap — no new residents are Medicare-funded."
-                  : "Unused FTE slots under the cap. New residents beyond this earn no Medicare GME."
-              }
-              value={inputs.gme.capHeadroomFte}
-              onChange={(v) => patchGme({ capHeadroomFte: Math.max(0, v) })}
-              disabled={inputs.gme.atMedicareCap}
-            />
-            <NumberField
-              label="Direct GME Per-Resident Amount (PRA)"
-              help="Hospital-specific CMS figure."
-              value={inputs.gme.directGmePerResidentAmount}
-              onChange={(v) => patchGme({ directGmePerResidentAmount: v })}
-              prefix="$"
-              step={5000}
-            />
+            {inputs.gme.scenario === "newTeachingHospital" ? (
+              <>
+                <NumberField
+                  label="Projected allowable GME cost per FTE (year 1)"
+                  help="Your own projected cost per resident FTE in the base period. The PRA is set as the LESSER of this and the locality mean below (42 CFR 413.77(e)) — a one-shot, permanent determination made from your early cost reports, and the highest-leverage number in this model."
+                  value={inputs.gme.newHospitalProjectedCostPerFte}
+                  onChange={(v) => patchGme({ newHospitalProjectedCostPerFte: Math.max(0, v) })}
+                  prefix="$"
+                  step={5000}
+                />
+                <NumberField
+                  label="Locality weighted mean PRA"
+                  help="Weighted mean PRA of teaching hospitals in your locality — the ceiling on your new PRA."
+                  value={inputs.gme.localityWeightedMeanPra}
+                  onChange={(v) => patchGme({ localityWeightedMeanPra: Math.max(0, v) })}
+                  prefix="$"
+                  step={5000}
+                />
+                <div className="callout">
+                  Effective PRA: <strong>{currency(effectivePra(inputs.gme))}</strong>. If a
+                  hospital is stuck with a very low or zero historical PRA, or a de-minimis
+                  cap, check whether it qualifies for a reset under CAA 2021 §131 before
+                  accepting the inherited figure.
+                </div>
+              </>
+            ) : (
+              <NumberField
+                label="Direct GME Per-Resident Amount (PRA)"
+                help="Hospital-specific CMS figure, set historically and trended forward."
+                value={inputs.gme.directGmePerResidentAmount}
+                onChange={(v) => patchGme({ directGmePerResidentAmount: v })}
+                prefix="$"
+                step={5000}
+              />
+            )}
+            {inputs.gme.scenario === "existingUnderCap" && (
+              <NumberField
+                label="Cap headroom (fundable resident FTE)"
+                help="Unused FTE slots under the cap. New residents beyond this earn no Medicare GME."
+                value={inputs.gme.capHeadroomFte}
+                onChange={(v) => patchGme({ capHeadroomFte: Math.max(0, v) })}
+              />
+            )}
+            {inputs.gme.scenario !== "newTeachingHospital" && (
+              <NumberField
+                label="Awarded new cap slots"
+                help="Slots awarded under CAA 2021 §126 (1,000 slots phased FY2023–FY2027) or CAA 2023 §4122 (200 slots, FY2026, at least 100 psychiatry-directed) via the CMS application process."
+                value={inputs.gme.awardedNewSlots}
+                onChange={(v) => patchGme({ awardedNewSlots: Math.max(0, v) })}
+              />
+            )}
             <PercentField
               label="Medicare share of inpatient days (FFS + Medicare Advantage)"
               help="The Medicare utilization ratio that apportions Direct GME. Medicare Advantage days belong in it (42 CFR 413.76 et seq.); the MA-related DGME is paid through the associated add-on stream."
@@ -284,13 +348,74 @@ export function App() {
               />
             </div>
             <NumberField
-              label="Medicaid GME support per resident / yr"
-              help="State-dependent; 0 if none."
-              value={inputs.gme.medicaidGmePerResident}
-              onChange={(v) => patchGme({ medicaidGmePerResident: v })}
+              label="Medicare inpatient capital PPS payments / yr"
+              help="Base for the capital IME add-on, e^(0.2822 × resident-to-bed ratio) − 1 (42 CFR 412.322). Leave at 0 to omit the line."
+              value={inputs.gme.medicareCapitalPayments}
+              onChange={(v) => patchGme({ medicareCapitalPayments: Math.max(0, v) })}
               prefix="$"
-              step={5000}
+              step={500_000}
             />
+            <ToggleField
+              label="Apply the three-year rolling average"
+              help="42 CFR 413.79(d): payment FTE is the average of this year and the prior two, except for a new program during its growth window (years 1–5). Realistic; leave on."
+              value={inputs.gme.applyRollingAverage}
+              onChange={(v) => patchGme({ applyRollingAverage: v })}
+            />
+            <ToggleField
+              label="Apply the IME resident-to-bed ratio cap"
+              help="42 CFR 412.105(a)(1): this year's ratio may not exceed last year's, again excepting a new program's growth window. Realistic; leave on."
+              value={inputs.gme.applyImeRatioCap}
+              onChange={(v) => patchGme({ applyImeRatioCap: v })}
+            />
+            <ChoiceField
+              label="State Medicaid GME mechanism"
+              help="States differ in kind, not just amount: some pay per resident, some direct a fixed appropriation to a hospital regardless of how many residents it trains."
+              value={inputs.gme.medicaid.mode}
+              onChange={(v) => patchMedicaid({ mode: v })}
+              options={[
+                {
+                  value: "perResident",
+                  label: "Per resident FTE",
+                  help: "A rate paid for each resident trained. Not subject to the Medicare cap.",
+                },
+                {
+                  value: "appropriation",
+                  label: "Fixed appropriation / IGA pool",
+                  help: "A set annual amount directed to this hospital — it does not grow with the program.",
+                },
+                { value: "none", label: "No Medicaid GME", help: "The state has no program." },
+              ]}
+            />
+            {inputs.gme.medicaid.mode === "perResident" && (
+              <NumberField
+                label="Medicaid GME support per resident / yr"
+                help="State-dependent; 0 if none."
+                value={inputs.gme.medicaid.perResidentAmount}
+                onChange={(v) => patchMedicaid({ perResidentAmount: Math.max(0, v) })}
+                prefix="$"
+                step={5000}
+              />
+            )}
+            {inputs.gme.medicaid.mode === "appropriation" && (
+              <>
+                <NumberField
+                  label="Annual Medicaid GME appropriation to this hospital"
+                  help="A fixed pool, independent of resident count."
+                  value={inputs.gme.medicaid.annualAppropriationTotal}
+                  onChange={(v) =>
+                    patchMedicaid({ annualAppropriationTotal: Math.max(0, v) })
+                  }
+                  prefix="$"
+                  step={100_000}
+                />
+                <ToggleField
+                  label="Requires a local (non-federal) match"
+                  help="e.g. an Arizona AHCCCS intergovernmental agreement. Without a committed IGA sponsor for the non-federal share, treat the appropriation as $0."
+                  value={inputs.gme.medicaid.requiresLocalMatch}
+                  onChange={(v) => patchMedicaid({ requiresLocalMatch: v })}
+                />
+              </>
+            )}
           </Section>
 
           <Section
