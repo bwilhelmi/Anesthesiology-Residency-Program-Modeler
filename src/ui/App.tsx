@@ -22,7 +22,7 @@ import { Results } from "./components/Results";
 import { RegionPicker } from "./components/RegionPicker";
 import { HospitalPicker } from "./components/HospitalPicker";
 import { Bibliography } from "./components/References";
-import { currency, number } from "./format";
+import { currency, number, percent } from "./format";
 
 /**
  * Bumped whenever the input shape changes incompatibly. The restore below is a
@@ -132,11 +132,18 @@ export function App() {
               min={0}
               max={40}
             />
+            <SliderField
+              label="Annual attrition"
+              help="Transfers and withdrawals. A class is (1 − rate)^years strong after that many years; cohorts stay fractional because rounding to whole people misstates both cost and Medicare FTE."
+              value={inputs.annualAttritionRate}
+              onChange={(v) => patch({ annualAttritionRate: v })}
+              max={0.15}
+            />
             <div className="callout">
               Steady-state complement:{" "}
-              <strong>{inputs.residentsPerClass * 4} residents</strong>. Anesthetist-
-              equivalent coverage they provide:{" "}
-              <strong>{number(coverage, 1)} FTE</strong> against a demand of{" "}
+              <strong>{number(result.steadyState.totalResidents, 1)} residents</strong>{" "}
+              after attrition. Anesthetist-equivalent coverage they provide at the sponsor
+              hospital: <strong>{number(coverage, 1)} FTE</strong> against a demand of{" "}
               <strong>{number(demand, 1)}</strong> staffed locations/day.
             </div>
           </Section>
@@ -472,6 +479,14 @@ export function App() {
               step={10000}
             />
             <NumberField
+              label="Participating-site support / yr (net)"
+              help="Net affiliation-agreement payments. Positive = the sponsor pays participating sites; negative = the sponsor is paid for residents rotating in."
+              value={inputs.program.participatingSiteSupportAnnual}
+              onChange={(v) => patchProg({ participatingSiteSupportAnnual: v })}
+              prefix="$"
+              step={25000}
+            />
+            <NumberField
               label="One-time startup cost"
               help="Application, consultants, initial buildout (amortized in reporting)."
               value={inputs.program.startupCost}
@@ -520,7 +535,17 @@ export function App() {
               <div key={year} className="clinical-year">
                 <h4>{YEAR_LABELS[year]}</h4>
                 <SliderField
-                  label="Fraction of year on anesthesia"
+                  label="Share of the year at the sponsor hospital"
+                  help="Time at participating sites (county, VA, children's) generates neither sponsor Medicare FTE nor sponsor coverage."
+                  value={inputs.clinical[year].sponsorSiteShare}
+                  onChange={(v) => patchClinical(year, { sponsorSiteShare: v })}
+                />
+                <SliderField
+                  label="Fraction of sponsor-site time on anesthesia"
+                  help={`Conditional on being here. Composite anesthesia exposure over the year: ${percent(
+                    inputs.clinical[year].sponsorSiteShare *
+                      inputs.clinical[year].fractionOnAnesthesia
+                  )}.`}
                   value={inputs.clinical[year].fractionOnAnesthesia}
                   onChange={(v) => patchClinical(year, { fractionOnAnesthesia: v })}
                 />
@@ -532,8 +557,15 @@ export function App() {
                 />
                 <SliderField
                   label="Off-service coverage (mid-level equivalent)"
+                  help="Credited only for off-service time spent at the sponsor hospital."
                   value={inputs.clinical[year].offServiceCoverageFte}
                   onChange={(v) => patchClinical(year, { offServiceCoverageFte: v })}
+                />
+                <SliderField
+                  label="IME-countable share of sponsor time"
+                  help="Patient-care activities are IME-countable; non-patient-care research time is not (42 CFR 412.105(f))."
+                  value={inputs.clinical[year].imeCountableShare}
+                  onChange={(v) => patchClinical(year, { imeCountableShare: v })}
                 />
               </div>
             ))}

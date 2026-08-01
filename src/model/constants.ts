@@ -109,30 +109,44 @@ export const DEFAULT_SALARIES = {
  */
 export const DEFAULT_CLINICAL: Record<ResidencyYear, ResidentYearClinicalParams> = {
   PGY1: {
-    // Per ACGME, the clinical base year is mostly non-anesthesia rotations,
-    // with roughly 1-3 months of anesthesia exposure.
-    fractionOnAnesthesia: 0.15,
+    // The clinical base year scatters across participating sites (county,
+    // VA, community medicine/ICU months), so only about half of it lands at
+    // the sponsor hospital.
+    sponsorSiteShare: 0.5,
+    imeCountableShare: 0.95,
+    // Conditional on being at the sponsor site. Composite anesthesia exposure
+    // is 0.5 × 0.3 = 0.15 — the same year-level exposure the model used before
+    // site allocation existed.
+    fractionOnAnesthesia: 0.3,
     anesthesiaCoverageFte: 0.3,
     offServiceCoverageFte: 0.55,
     offServiceProviderAnnualCost: 150_000,
   },
   PGY2: {
     // CA-1: on anesthesia nearly all year, but ramping and closely supervised.
-    fractionOnAnesthesia: 0.82,
+    // Away time is subspecialty months the sponsor cannot staff itself.
+    sponsorSiteShare: 0.85,
+    imeCountableShare: 0.95,
+    fractionOnAnesthesia: 0.92, // composite 0.78
     anesthesiaCoverageFte: 0.5,
     offServiceCoverageFte: 0.4,
     offServiceProviderAnnualCost: 150_000,
   },
   PGY3: {
     // CA-2: subspecialty rotations, growing independence.
-    fractionOnAnesthesia: 0.85,
+    sponsorSiteShare: 0.85,
+    imeCountableShare: 0.95,
+    fractionOnAnesthesia: 0.95, // composite 0.81
     anesthesiaCoverageFte: 0.7,
     offServiceCoverageFte: 0.4,
     offServiceProviderAnnualCost: 150_000,
   },
   PGY4: {
-    // CA-3: near-independent under supervision, takes senior call.
-    fractionOnAnesthesia: 0.85,
+    // CA-3: near-independent under supervision, takes senior call, and is the
+    // class the sponsor keeps closest to home.
+    sponsorSiteShare: 0.9,
+    imeCountableShare: 0.95,
+    fractionOnAnesthesia: 0.95, // composite 0.855
     anesthesiaCoverageFte: 0.85,
     offServiceCoverageFte: 0.4,
     offServiceProviderAnnualCost: 150_000,
@@ -143,6 +157,9 @@ export const DEFAULT_CLINICAL: Record<ResidencyYear, ResidentYearClinicalParams>
 
 export const DEFAULT_INPUTS: ModelInputs = {
   residentsPerClass: 6,
+  // Anesthesiology attrition is low but not zero; national transfer/withdrawal
+  // rates sit in the low single digits per year.
+  annualAttritionRate: 0.02,
   salaries: { ...DEFAULT_SALARIES },
   locations: {
     operatingRooms: 20,
@@ -190,6 +207,9 @@ export const DEFAULT_INPUTS: ModelInputs = {
     facultyTeachingFtePerResident: 0.04,
     fixedAnnualProgramOverhead: 250_000,
     startupCost: 750_000,
+    // Net of affiliation agreements in both directions; zero until the sponsor
+    // knows what its participating sites will charge or pay.
+    participatingSiteSupportAnnual: 0,
   },
   efficiency: {
     annualMarginPerStaffedLocation: 350_000,

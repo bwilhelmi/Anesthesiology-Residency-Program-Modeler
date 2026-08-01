@@ -195,9 +195,27 @@ export interface GmeFundingInputs {
  */
 export interface ResidentYearClinicalParams {
   /**
-   * Fraction of the training year the resident spends staffing anesthetizing
-   * locations at THIS hospital (vs. required off-service rotations, vacation,
-   * didactics, away electives). Intern year is low; CA years are high.
+   * Fraction of the training year spent at the SPONSOR hospital, as opposed to
+   * participating sites (county hospital, VA, children's, private practice
+   * electives). Medicare FTEs count where the training occurs, and clinical
+   * value accrues where the resident is standing: a PGY-1 on required
+   * off-service months at a participating site generates neither sponsor
+   * Medicare FTE nor sponsor coverage for those months.
+   */
+  sponsorSiteShare: number;
+  /**
+   * Fraction of sponsor-site time that is countable for IME — patient-care
+   * activities. Non-patient-care research time is excluded.
+   * 42 CFR 412.105(f) — patient care activities; didactics and other approved
+   * activities per the current rule text; research excluded.
+   */
+  imeCountableShare: number;
+  /**
+   * Fraction of SPONSOR-SITE time the resident spends staffing anesthetizing
+   * locations (vs. off-service rotations, vacation, didactics). Conditional on
+   * being at the sponsor hospital: composite anesthesia exposure over the year
+   * is sponsorSiteShare × fractionOnAnesthesia. Intern year is low; CA years
+   * are high.
    */
   fractionOnAnesthesia: number;
   /**
@@ -262,6 +280,13 @@ export interface ProgramCostInputs {
    * (application, consultants, initial buildout). Amortized in reporting.
    */
   startupCost: number;
+  /**
+   * Net annual payment under affiliation agreements with participating sites.
+   * Positive = the sponsor pays out (the usual direction when residents rotate
+   * away and the sponsor keeps paying their stipends); negative = the sponsor
+   * receives support for residents rotating in.
+   */
+  participatingSiteSupportAnnual: number;
 }
 
 /** Efficiency effects of teaching on clinical throughput / revenue. */
@@ -286,6 +311,12 @@ export interface EfficiencyInputs {
 export interface ModelInputs {
   /** Residents recruited per class (per PGY cohort). Steady state = 4 classes. */
   residentsPerClass: number;
+  /**
+   * Annual attrition rate. A class of n entering residents is n × (1 − rate)^k
+   * strong after k years in the program. FTEs stay fractional — rounding a
+   * cohort to whole people would misstate both cost and Medicare FTE.
+   */
+  annualAttritionRate: number;
   salaries: SalaryInputs;
   locations: AnesthetizingLocations;
   gme: GmeFundingInputs;

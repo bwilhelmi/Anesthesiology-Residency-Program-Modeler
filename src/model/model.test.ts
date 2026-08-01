@@ -31,6 +31,7 @@ import {
 import { loadedResidentCost, residentSalaryCost } from "./program";
 import {
   computeYear,
+  countableFteForYear,
   residentsInProgramYear,
   runModel,
   steadyStateCoverageFte,
@@ -300,7 +301,7 @@ describe("Clinical value", () => {
   it("coverage FTE is pure staffing equivalence, with no throughput discount", () => {
     const p = DEFAULT_INPUTS.clinical.PGY2;
     expect(coverageFteForYear(p)).toBeCloseTo(
-      p.fractionOnAnesthesia * p.anesthesiaCoverageFte,
+      p.sponsorSiteShare * p.fractionOnAnesthesia * p.anesthesiaCoverageFte,
       10
     );
   });
@@ -370,7 +371,14 @@ describe("Throughput loss is charged once (P0.2)", () => {
     const crnaLoaded = loaded(inputs.salaries.crnaSalary, inputs.salaries.benefitLoadRate);
     const expected = RESIDENCY_YEARS.reduce((s, y) => {
       const p = inputs.clinical[y];
-      return s + cohort[y] * p.fractionOnAnesthesia * p.anesthesiaCoverageFte * crnaLoaded;
+      return (
+        s +
+        cohort[y] *
+          p.sponsorSiteShare *
+          p.fractionOnAnesthesia *
+          p.anesthesiaCoverageFte *
+          crnaLoaded
+      );
     }, 0);
     expect(r.benefits.find((b) => b.key === "labor")!.amount).toBeCloseTo(expected, 6);
     expect(r.costs.find((c) => c.key === "efficiency")!.amount).toBe(0);
@@ -473,15 +481,122 @@ describe("Supervision-ratio warnings (P0.6)", () => {
   });
 });
 
+describe("Site allocation and countable FTE (P2.1)", () => {
+  it("counts only sponsor-site time as Medicare DGME FTE", () => {
+    const inputs: ModelInputs = { ...DEFAULT_INPUTS, annualAttritionRate: 0 };
+    // A 6-intern class at a 0.5 sponsor-site share is 3.0 sponsor DGME FTE.
+    const y1 = countableFteForYear(inputs, 1, residentsInProgramYear(inputs, 1));
+    expect(inputs.clinical.PGY1.sponsorSiteShare).toBe(0.5);
+    expect(y1.dgmeFte).toBeCloseTo(3.0, 10);
+    expect(y1.byLevel.PGY1).toBeCloseTo(3.0, 10);
+  });
+
+  it("counts only the patient-care share of sponsor time for IME", () => {
+    const inputs: ModelInputs = { ...DEFAULT_INPUTS, annualAttritionRate: 0 };
+    const y1 = countableFteForYear(inputs, 1, residentsInProgramYear(inputs, 1));
+    expect(y1.imeFte).toBeCloseTo(3.0 * 0.95, 10);
+    expect(y1.imeFte).toBeLessThan(y1.dgmeFte);
+  });
+
+  it("composes coverage as sponsorSiteShare × fractionOnAnesthesia × capability", () => {
+    const params = {
+      ...DEFAULT_INPUTS.clinical.PGY2,
+      sponsorSiteShare: 0.85,
+      fractionOnAnesthesia: 0.82,
+      anesthesiaCoverageFte: 0.5,
+    };
+    expect(coverageFteForYear(params)).toBeCloseTo(0.3485, 10);
+  });
+
+  it("credits off-service value only for sponsor-site off-service time", () => {
+    const params = {
+      ...DEFAULT_INPUTS.clinical.PGY1,
+      sponsorSiteShare: 0.5,
+      fractionOnAnesthesia: 0.3,
+      offServiceCoverageFte: 0.55,
+      offServiceProviderAnnualCost: 150_000,
+    };
+    // 0.5 sponsor × 0.7 off-service × 0.55 FTE × $150k.
+    expect(offServiceValue(params)).toBeCloseTo(0.5 * 0.7 * 0.55 * 150_000, 6);
+    // Send the resident entirely away and the sponsor's credit disappears.
+    expect(offServiceValue({ ...params, sponsorSiteShare: 0 })).toBe(0);
+  });
+
+  it("carries participating-site support as a cost line only when set", () => {
+    const base = runModel(DEFAULT_INPUTS);
+    expect(base.steadyState.costs.some((c) => c.key === "sitesupport")).toBe(false);
+
+    const paying: ModelInputs = {
+      ...DEFAULT_INPUTS,
+      program: { ...DEFAULT_INPUTS.program, participatingSiteSupportAnnual: 250_000 },
+    };
+    const withSupport = runModel(paying);
+    expect(withSupport.steadyState.costs.find((c) => c.key === "sitesupport")!.amount).toBe(
+      250_000
+    );
+    expect(withSupport.steadyState.totalCosts).toBeCloseTo(
+      base.steadyState.totalCosts + 250_000,
+      6
+    );
+  });
+});
+
+describe("Attrition (P2.2)", () => {
+  it("thins each cohort by the annual rate, without rounding to whole people", () => {
+    const inputs: ModelInputs = {
+      ...DEFAULT_INPUTS,
+      residentsPerClass: 10,
+      annualAttritionRate: 0.1,
+    };
+    const steady = residentsInProgramYear(inputs, 4);
+    expect(steady.PGY1).toBeCloseTo(10, 10);
+    expect(steady.PGY2).toBeCloseTo(9, 10);
+    expect(steady.PGY3).toBeCloseTo(8.1, 10);
+    expect(steady.PGY4).toBeCloseTo(7.29, 10);
+  });
+
+  it("applies symmetrically to costs and benefits", () => {
+    const withAttrition: ModelInputs = { ...DEFAULT_INPUTS, annualAttritionRate: 0.1 };
+    const without: ModelInputs = { ...DEFAULT_INPUTS, annualAttritionRate: 0 };
+    const a = runModel(withAttrition).steadyState;
+    const b = runModel(without).steadyState;
+    expect(a.totalResidents).toBeLessThan(b.totalResidents);
+    expect(a.costs.find((c) => c.key === "residentsalary")!.amount).toBeLessThan(
+      b.costs.find((c) => c.key === "residentsalary")!.amount
+    );
+    expect(a.benefits.find((x) => x.key === "labor")!.amount).toBeLessThan(
+      b.benefits.find((x) => x.key === "labor")!.amount
+    );
+  });
+
+  it("shrinks the cap a new teaching hospital builds", () => {
+    const lossy: ModelInputs = {
+      ...DEFAULT_INPUTS,
+      residentsPerClass: 10,
+      annualAttritionRate: 0.1,
+    };
+    // Countable FTE by level in year 5, after attrition and site share:
+    //   PGY1 10 × 0.50 = 5.00   PGY2 9 × 0.85 = 7.65
+    //   PGY3 8.1 × 0.85 = 6.885 PGY4 7.29 × 0.90 = 6.561
+    // The CA-1 cohort is the largest single program year, so the cap it builds
+    // is 7.65 × 4 = 30.6 — not the 40 a naive headcount × 4 would suggest.
+    const y5 = countableFteForYear(lossy, 5, residentsInProgramYear(lossy, 5));
+    expect(buildPermanentCap(y5.byLevel)).toBeCloseTo(30.6, 10);
+  });
+});
+
 describe("Program ramp", () => {
+  /** Attrition off, so cohort arithmetic is legible. */
+  const even: ModelInputs = { ...DEFAULT_INPUTS, annualAttritionRate: 0 };
+
   it("adds one class per year up to four", () => {
-    expect(residentsInProgramYear(DEFAULT_INPUTS, 1)).toMatchObject({
+    expect(residentsInProgramYear(even, 1)).toMatchObject({
       PGY1: 6,
       PGY2: 0,
       PGY3: 0,
       PGY4: 0,
     });
-    expect(residentsInProgramYear(DEFAULT_INPUTS, 4)).toMatchObject({
+    expect(residentsInProgramYear(even, 4)).toMatchObject({
       PGY1: 6,
       PGY2: 6,
       PGY3: 6,
@@ -490,7 +605,7 @@ describe("Program ramp", () => {
   });
 
   it("does not exceed four classes", () => {
-    expect(residentsInProgramYear(DEFAULT_INPUTS, 8)).toMatchObject({
+    expect(residentsInProgramYear(even, 8)).toMatchObject({
       PGY1: 6,
       PGY2: 6,
       PGY3: 6,
@@ -501,7 +616,7 @@ describe("Program ramp", () => {
 
 describe("Full model", () => {
   it("produces four ramp years and a steady state", () => {
-    const r = runModel(DEFAULT_INPUTS);
+    const r = runModel({ ...DEFAULT_INPUTS, annualAttritionRate: 0 });
     expect(r.rampYears).toHaveLength(4);
     expect(r.steadyState.totalResidents).toBe(24);
   });
@@ -530,7 +645,7 @@ describe("Full model", () => {
   });
 
   it("reports the mature year (post cap-building) as steady state", () => {
-    const r = runModel(DEFAULT_INPUTS);
+    const r = runModel({ ...DEFAULT_INPUTS, annualAttritionRate: 0 });
     expect(r.steadyState.programYear).toBe(MATURE_PROGRAM_YEAR);
     expect(r.steadyState.totalResidents).toBe(24);
     // The cap a new teaching hospital builds for itself is exactly its complement.

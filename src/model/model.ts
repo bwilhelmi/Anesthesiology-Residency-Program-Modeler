@@ -4,11 +4,15 @@
  *
  * A residency program is built out one class at a time: in program year 1 only
  * the PGY-1 class is present; by year 4 all four classes (PGY-1..PGY-4) are
- * present ("steady state"). We report each ramp year plus steady state so the
- * user can see the cash-flow trajectory, not just the mature program.
+ * present. Full complement is not the same as mature economics, though — the
+ * Medicare cap, the three-year rolling average, and the IME ratio cap only all
+ * bind from program year 6 — so the reported steady state is that mature year.
+ * We report each ramp year plus steady state so the user can see the cash-flow
+ * trajectory, not just the mature program.
  */
 
 import {
+  countableFteForResident,
   coverageFteForYear,
   incrementalSupervisionCostPerLocation,
   juniorityWeight,
@@ -34,12 +38,20 @@ import type {
 } from "./types";
 import { RESIDENCY_YEARS, YEAR_LABELS } from "./types";
 
-/** Residents present in a given program year (1-based), as classes accumulate. */
+/**
+ * Residents present in a given program year (1-based), as classes accumulate
+ * and attrition thins the senior cohorts.
+ *
+ * Headcounts stay fractional on purpose: a cohort of 9.8 is the right expected
+ * value for cost and Medicare FTE alike, and rounding it to people would
+ * misstate both.
+ */
 export function residentsInProgramYear(
   inputs: ModelInputs,
   programYear: number
 ): Record<ResidencyYear, number> {
   const perClass = Math.max(0, inputs.residentsPerClass);
+  const survival = 1 - clamp01(inputs.annualAttritionRate);
   const out: Record<ResidencyYear, number> = {
     PGY1: 0,
     PGY2: 0,
@@ -49,7 +61,8 @@ export function residentsInProgramYear(
   // In program year Y, classes that have started are PGY1..PGY(min(Y,4)).
   const classesPresent = Math.min(programYear, RESIDENCY_YEARS.length);
   for (let i = 0; i < classesPresent; i++) {
-    out[RESIDENCY_YEARS[i]] = perClass;
+    // i years already completed in the program.
+    out[RESIDENCY_YEARS[i]] = perClass * Math.pow(survival, i);
   }
   return out;
 }
@@ -57,21 +70,31 @@ export function residentsInProgramYear(
 /**
  * Medicare-countable resident FTE for one program year.
  *
- * In this phase countable FTE is simply headcount; P2 splits it by the share of
- * the year actually trained at the sponsor hospital.
+ * Headcount is not FTE: residents count at the hospital where the training
+ * occurs, so a cohort's contribution is scaled by the share of the year spent
+ * at the sponsor site, and IME additionally by the patient-care share of that
+ * time (42 CFR 412.105(f)).
  */
 export function countableFteForYear(
+  inputs: ModelInputs,
   programYear: number,
   residentsByYear: Record<ResidencyYear, number>
 ): GmeYearFte {
   const byLevel: Record<ResidencyYear, number> = {
-    PGY1: residentsByYear.PGY1 ?? 0,
-    PGY2: residentsByYear.PGY2 ?? 0,
-    PGY3: residentsByYear.PGY3 ?? 0,
-    PGY4: residentsByYear.PGY4 ?? 0,
+    PGY1: 0,
+    PGY2: 0,
+    PGY3: 0,
+    PGY4: 0,
   };
-  const total = RESIDENCY_YEARS.reduce((s, y) => s + byLevel[y], 0);
-  return { programYear, byLevel, dgmeFte: total, imeFte: total };
+  let imeFte = 0;
+  for (const year of RESIDENCY_YEARS) {
+    const n = residentsByYear[year] ?? 0;
+    const countable = countableFteForResident(inputs.clinical[year]);
+    byLevel[year] = n * countable.dgme;
+    imeFte += n * countable.ime;
+  }
+  const dgmeFte = RESIDENCY_YEARS.reduce((s, y) => s + byLevel[y], 0);
+  return { programYear, byLevel, dgmeFte, imeFte };
 }
 
 /**
@@ -99,7 +122,9 @@ export function computeYear(
 
   const gmeFunding =
     funding ??
-    gmeFundingTimeline(inputs.gme, [countableFteForYear(programYear, residentsByYear)])[0];
+    gmeFundingTimeline(inputs.gme, [
+      countableFteForYear(inputs, programYear, residentsByYear),
+    ])[0];
   warnings.push(...gmeFunding.warnings);
 
   const dgme = gmeFunding.dgme;
@@ -263,6 +288,20 @@ export function computeYear(
     },
   ];
 
+  // Affiliation agreements with participating sites, net and in either
+  // direction. Omitted from the breakdown entirely when the user has not set it.
+  if (inputs.program.participatingSiteSupportAnnual !== 0 && totalResidents > 0) {
+    costs.push({
+      key: "sitesupport",
+      label: "Participating-site support (affiliation agreements)",
+      amount: inputs.program.participatingSiteSupportAnnual,
+      detail:
+        inputs.program.participatingSiteSupportAnnual > 0
+          ? "Net annual payment the sponsor makes to participating sites where residents rotate."
+          : "Net annual support the sponsor receives from participating sites (shown as a negative cost).",
+    });
+  }
+
   const totalBenefits = sum(benefits.map((b) => b.amount));
   const totalCosts = sum(costs.map((c) => c.amount));
 
@@ -294,7 +333,7 @@ export function runModel(inputs: ModelInputs): ModelResult {
   for (let y = 1; y <= MATURE_PROGRAM_YEAR; y++) {
     const cohort = residentsInProgramYear(inputs, y);
     cohorts.push(cohort);
-    fteByYear.push(countableFteForYear(y, cohort));
+    fteByYear.push(countableFteForYear(inputs, y, cohort));
   }
 
   const funding = gmeFundingTimeline(inputs.gme, fteByYear);
@@ -341,6 +380,10 @@ function dedupe(xs: string[]): string[] {
 
 function round1(x: number): string {
   return x.toFixed(1);
+}
+
+function clamp01(x: number): number {
+  return Math.max(0, Math.min(1, x));
 }
 
 /** Plain-language note on what the FTE cap did to this year's DGME. */

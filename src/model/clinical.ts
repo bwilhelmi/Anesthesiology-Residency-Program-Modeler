@@ -58,16 +58,29 @@ export function juniorityWeight(year: ResidencyYear): number {
 }
 
 /**
- * Anesthetist-equivalent coverage FTE delivered by one resident at a given
- * level — pure staffing equivalence, with no throughput discount applied.
+ * Anesthetist-equivalent coverage FTE delivered to the SPONSOR hospital by one
+ * resident at a given level:
  *
+ *     coverage = sponsorSiteShare × fractionOnAnesthesia × anesthesiaCoverageFte
+ *
+ * The three factors answer three different questions — is the resident at this
+ * hospital, are they on anesthesia while here, and how much of an anesthetist
+ * are they while on anesthesia. Coverage delivered at a participating site is
+ * real work, but it is not the sponsor's benefit.
+ *
+ * This is pure staffing equivalence, with no throughput discount applied.
  * Slower individual case conduct is already reflected in the per-level
  * `anesthesiaCoverageFte` ramp (a CA-1 is booked as a fraction of an anesthetist
  * precisely because they are slower); the remaining economic effect of teaching
  * on the hospital's case volume is charged once as margin loss in the model.
  */
 export function coverageFteForYear(params: ResidentYearClinicalParams): number {
-  return Math.max(0, params.fractionOnAnesthesia * params.anesthesiaCoverageFte);
+  return Math.max(
+    0,
+    clamp01(params.sponsorSiteShare) *
+      params.fractionOnAnesthesia *
+      params.anesthesiaCoverageFte
+  );
 }
 
 /** Labor value (CRNA cost offset) of one resident-year at a given level. */
@@ -97,14 +110,33 @@ export function incrementalSupervisionCostPerLocation(
   return Math.max(0, attendingLoaded * (perRoomWithResidents - perRoomWithCrnas));
 }
 
-/** Intern / off-service service value delivered to host departments. */
-export function offServiceValue(
-  params: ResidentYearClinicalParams
-): number {
-  const timeOffService = Math.max(0, 1 - params.fractionOnAnesthesia);
+/**
+ * Intern / off-service service value delivered to host departments AT THE
+ * SPONSOR HOSPITAL. Off-service months spent at a participating site benefit
+ * that institution, not this one, so only sponsor-site off-service time earns
+ * the credit.
+ */
+export function offServiceValue(params: ResidentYearClinicalParams): number {
+  const sponsorTimeOffService =
+    clamp01(params.sponsorSiteShare) * Math.max(0, 1 - params.fractionOnAnesthesia);
   return (
-    timeOffService * params.offServiceCoverageFte * params.offServiceProviderAnnualCost
+    sponsorTimeOffService *
+    params.offServiceCoverageFte *
+    params.offServiceProviderAnnualCost
   );
+}
+
+/**
+ * Medicare-countable FTE contributed by one resident-year at the sponsor
+ * hospital. DGME counts sponsor-site time at the full IRP weight; IME counts
+ * only the patient-care portion of it (42 CFR 412.105(f)).
+ */
+export function countableFteForResident(params: ResidentYearClinicalParams): {
+  dgme: number;
+  ime: number;
+} {
+  const dgme = clamp01(params.sponsorSiteShare);
+  return { dgme, ime: dgme * clamp01(params.imeCountableShare) };
 }
 
 /** Aggregate coverage FTE across a set of residents (by level and count). */
