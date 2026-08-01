@@ -191,11 +191,16 @@ runs. It is the largest single assumption in the model:
 | 1:4 | $125,000 | +$0.85M |
 
 At 1:2 the cost vanishes entirely — the resident room ties up no more attending
-time than the CRNA room it replaced. One caveat the slider cannot express: if
-your CRNAs practice **independently** (an opt-out state, or medical supervision
-rather than direction), the counterfactual room consumes *no* attending at all,
-the resident room's full half-attending is incremental, and the model as
-configured understates the cost substantially.
+time than the CRNA room it replaced.
+
+**Scope note.** The slider stops at 1:4 and does not model independent CRNA
+practice. That is deliberate rather than an oversight: independent practice is
+uncommon at the tertiary centers that sponsor anesthesiology residencies, which
+run a medically directed care team. If you *are* modeling a hospital where CRNAs
+practice independently — an opt-out state, or medical supervision rather than
+direction — then the counterfactual room consumes no attending at all, the
+resident room's full half-attending is incremental, and this model understates
+the cost substantially. Read its output as a ceiling in that case.
 
 ---
 

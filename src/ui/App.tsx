@@ -526,8 +526,7 @@ export function App() {
                 )}
               </strong>{" "}
               per covered location per year. At 1:2 the two are identical and the cost
-              vanishes; if your CRNAs practice independently, the full attending is
-              incremental and this understates it.
+              vanishes entirely.
             </div>
             <NumberField
               label="Max resident cases per teaching anesthesiologist"
