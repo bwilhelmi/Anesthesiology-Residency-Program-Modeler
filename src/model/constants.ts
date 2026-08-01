@@ -211,6 +211,16 @@ export const DEFAULT_INPUTS: ModelInputs = {
     // knows what its participating sites will charge or pay.
     participatingSiteSupportAnnual: 0,
   },
+  projection: {
+    // Ten program years shows the mature program well past cap-building.
+    horizonYears: 10,
+    // ACGME application, review, and one Match cycle before the first class.
+    preRevenueYears: 2,
+    discountRate: 0.06, // hospital hurdle rate / WACC proxy
+    salaryInflation: 0.03,
+    praUpdateRate: 0.025, // CPI-U proxy; CMS updates the PRA annually
+    paymentBaseGrowth: 0.025,
+  },
   efficiency: {
     annualMarginPerStaffedLocation: 350_000,
     // Charged once, as margin loss on covered locations. Lower than the old

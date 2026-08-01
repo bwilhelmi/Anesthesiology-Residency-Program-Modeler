@@ -17,6 +17,7 @@ import {
   incrementalSupervisionCostPerLocation,
   juniorityWeight,
   laborSubstitutionValue,
+  loaded,
   offServiceValue,
   staffedLocationDemand,
   totalCoverageFte,
@@ -33,6 +34,8 @@ import type {
   LineItem,
   ModelInputs,
   ModelResult,
+  ModelSummary,
+  ProjectionInputs,
   ResidencyYear,
   YearResult,
 } from "./types";
@@ -318,8 +321,145 @@ export function computeYear(
   };
 }
 
+/* ------------------------- Escalation over the frame ---------------------- */
+
 /**
- * Run the full model.
+ * Growth factors applied to a program year's dollars. Inputs are typed in
+ * year-1 dollars, so program year 1 escalates by nothing and the pre-revenue
+ * years (0, −1) sit slightly BELOW the typed figures — the same money, earlier.
+ */
+export function escalationFactors(
+  projection: ProjectionInputs,
+  programYear: number
+): { wage: number; pra: number; base: number } {
+  const t = programYear - 1;
+  return {
+    wage: Math.pow(1 + projection.salaryInflation, t),
+    pra: Math.pow(1 + projection.praUpdateRate, t),
+    base: Math.pow(1 + projection.paymentBaseGrowth, t),
+  };
+}
+
+/**
+ * A copy of the inputs with each dollar figure grown to the given program year.
+ * Escalating the inputs (rather than the outputs) keeps every downstream
+ * calculation — supervision cost, margin loss, per-resident costs — automatically
+ * consistent with the year it is priced in.
+ */
+function escalateInputs(inputs: ModelInputs, programYear: number): ModelInputs {
+  const f = escalationFactors(inputs.projection, programYear);
+  if (f.wage === 1 && f.pra === 1 && f.base === 1) return inputs;
+
+  const clinical = {} as ModelInputs["clinical"];
+  for (const year of RESIDENCY_YEARS) {
+    clinical[year] = {
+      ...inputs.clinical[year],
+      offServiceProviderAnnualCost:
+        inputs.clinical[year].offServiceProviderAnnualCost * f.base,
+    };
+  }
+
+  return {
+    ...inputs,
+    salaries: {
+      ...inputs.salaries,
+      anesthesiologistSalary: inputs.salaries.anesthesiologistSalary * f.wage,
+      crnaSalary: inputs.salaries.crnaSalary * f.wage,
+      residentSalary: inputs.salaries.residentSalary * f.wage,
+      residentBenefitAnnual: inputs.salaries.residentBenefitAnnual * f.wage,
+    },
+    program: {
+      ...inputs.program,
+      programCoordinatorCost: inputs.program.programCoordinatorCost * f.wage,
+      fixedAnnualProgramOverhead: inputs.program.fixedAnnualProgramOverhead * f.wage,
+      participatingSiteSupportAnnual:
+        inputs.program.participatingSiteSupportAnnual * f.wage,
+      startupCost: inputs.program.startupCost * f.wage,
+    },
+    efficiency: {
+      ...inputs.efficiency,
+      annualMarginPerStaffedLocation:
+        inputs.efficiency.annualMarginPerStaffedLocation * f.base,
+    },
+    clinical,
+  };
+}
+
+/** Grow a year's Medicare dollars; the FTE determinations behind them do not move. */
+function escalateFunding(
+  funding: GmeYearFunding,
+  inputs: ModelInputs,
+  programYear: number
+): GmeYearFunding {
+  const f = escalationFactors(inputs.projection, programYear);
+  return {
+    ...funding,
+    dgme: funding.dgme * f.pra,
+    ime: funding.ime * f.base,
+    capitalIme: funding.capitalIme * f.base,
+  };
+}
+
+/* ------------------------------ Pre-revenue ------------------------------- */
+
+/**
+ * A year of spending before the first class arrives: accreditation work, the
+ * program director's protected time, a coordinator, and the first Match cycle.
+ * No residents, so no benefits of any kind — this is the hole the program has
+ * to climb out of, and leaving it out is how pro formas end up optimistic.
+ *
+ * The final pre-revenue year (program year 0) is a full ramp-up year; earlier
+ * ones are modeled at half the director's time and half the fixed overhead,
+ * with the coordinator on board throughout.
+ */
+export function computePreRevenueYear(
+  inputs: ModelInputs,
+  programYear: number
+): YearResult {
+  const escalated = escalateInputs(inputs, programYear);
+  const attendingLoaded = loaded(
+    escalated.salaries.anesthesiologistSalary,
+    escalated.salaries.benefitLoadRate
+  );
+  const isFinalPreRevenueYear = programYear === 0;
+  const rampFactor = isFinalPreRevenueYear ? 1 : 0.5;
+  const preRevenueYears = Math.max(1, Math.round(inputs.projection.preRevenueYears));
+
+  const pdFte = escalated.program.programDirectorFte * rampFactor;
+  const costs: LineItem[] = [
+    {
+      key: "startup",
+      label: "Startup & accreditation",
+      amount: escalated.program.startupCost / preRevenueYears,
+      detail: `One-time startup cost spread evenly across the ${preRevenueYears} pre-revenue year(s): ACGME application, consultants, initial build-out.`,
+    },
+    {
+      key: "support",
+      label: "Program leadership, coordination & overhead",
+      amount: pdFte * attendingLoaded + escalated.program.programCoordinatorCost +
+        escalated.program.fixedAnnualProgramOverhead * rampFactor,
+      detail: `Assumption: the Program Director is hired early at ${(pdFte * 100).toFixed(0)}% protected time, the coordinator is on board from the first pre-revenue year, and ${rampFactor === 1 ? "full" : "half"} fixed overhead runs (recruitment, accreditation fees). No Associate PD and no faculty teaching effort until residents arrive.`,
+    },
+  ];
+
+  const totalCosts = sum(costs.map((c) => c.amount));
+  return {
+    programYear,
+    residentsByYear: { PGY1: 0, PGY2: 0, PGY3: 0, PGY4: 0 },
+    totalResidents: 0,
+    benefits: [],
+    costs,
+    totalBenefits: 0,
+    totalCosts,
+    netValue: -totalCosts,
+    warnings: [],
+  };
+}
+
+/* -------------------------------- Run it ---------------------------------- */
+
+/**
+ * Run the full model over the projection frame.
  *
  * Medicare funding depends on the program's history — a cap built in year 5, a
  * three-year rolling average, a ratio that cannot outrun last year's — so the
@@ -328,34 +468,88 @@ export function computeYear(
  * rolling average, and the ratio cap all bind; years 1–4 are the ramp.
  */
 export function runModel(inputs: ModelInputs): ModelResult {
+  const horizon = Math.max(1, Math.round(inputs.projection.horizonYears));
+  const preRevenueYears = Math.max(0, Math.round(inputs.projection.preRevenueYears));
+
+  // Pre-revenue years run 0, −1, … and are reported oldest first.
+  const preRevenue: YearResult[] = [];
+  for (let y = 1 - preRevenueYears; y <= 0; y++) {
+    preRevenue.push(computePreRevenueYear(inputs, y));
+  }
+
   const cohorts: Record<ResidencyYear, number>[] = [];
   const fteByYear: GmeYearFte[] = [];
-  for (let y = 1; y <= MATURE_PROGRAM_YEAR; y++) {
+  for (let y = 1; y <= horizon; y++) {
     const cohort = residentsInProgramYear(inputs, y);
     cohorts.push(cohort);
     fteByYear.push(countableFteForYear(inputs, y, cohort));
   }
 
   const funding = gmeFundingTimeline(inputs.gme, fteByYear);
-  const allYears = cohorts.map((cohort, i) =>
-    computeYear(inputs, i + 1, cohort, funding[i])
-  );
+  const programYears = cohorts.map((cohort, i) => {
+    const programYear = i + 1;
+    return computeYear(
+      escalateInputs(inputs, programYear),
+      programYear,
+      cohort,
+      escalateFunding(funding[i], inputs, programYear)
+    );
+  });
 
-  const rampYears = allYears.slice(0, RESIDENCY_YEARS.length);
-  const steadyState = allYears[MATURE_PROGRAM_YEAR - 1];
-
-  // Cumulative net across the four ramp years, less one-time startup cost.
-  const rampNet = sum(rampYears.map((r) => r.netValue));
-  const fiveYearCumulativeNet =
-    rampNet + steadyState.netValue - inputs.program.startupCost;
+  const years = [...preRevenue, ...programYears];
+  const rampYears = programYears.slice(0, RESIDENCY_YEARS.length);
+  const steadyState =
+    programYears[Math.min(MATURE_PROGRAM_YEAR, horizon) - 1] ??
+    programYears[programYears.length - 1];
 
   return {
+    years,
     rampYears,
     steadyState,
-    fiveYearCumulativeNet,
+    summary: summarize(years, inputs.projection),
+    fiveYearCumulativeNet: sum(
+      programYears.filter((y) => y.programYear <= 5).map((y) => y.netValue)
+    ),
     steadyStateBenefits: steadyState.benefits,
     steadyStateCosts: steadyState.costs,
-    warnings: dedupe(allYears.flatMap((y) => y.warnings)),
+    warnings: dedupe(years.flatMap((y) => y.warnings)),
+  };
+}
+
+/**
+ * Headline figures over the whole frame. Discounting starts at period 0 in the
+ * first modeled year — the earliest pre-revenue year — so the startup hole is
+ * counted at full weight rather than discounted away.
+ */
+export function summarize(
+  years: YearResult[],
+  projection: ProjectionInputs
+): ModelSummary {
+  const preRevenueYears = Math.max(0, Math.round(projection.preRevenueYears));
+  let npv = 0;
+  let nominalCumulativeNet = 0;
+  let cumulativeDiscounted = 0;
+  let breakevenYear: number | null = null;
+
+  for (const y of years) {
+    const period = y.programYear + preRevenueYears - 1;
+    const discounted = y.netValue / Math.pow(1 + projection.discountRate, period);
+    npv += discounted;
+    nominalCumulativeNet += y.netValue;
+    cumulativeDiscounted += discounted;
+    if (breakevenYear === null && y.programYear >= 1 && cumulativeDiscounted >= 0) {
+      breakevenYear = y.programYear;
+    }
+  }
+
+  const mature =
+    years.find((y) => y.programYear === MATURE_PROGRAM_YEAR) ?? years[years.length - 1];
+
+  return {
+    nominalCumulativeNet,
+    npv,
+    breakevenYear,
+    steadyStateAnnualNet: mature ? mature.netValue : 0,
   };
 }
 

@@ -1,7 +1,11 @@
 /**
  * Domain types for the ACGME anesthesiology residency program cost/benefit model.
  *
- * All monetary values are in current-year US dollars unless otherwise noted.
+ * MONEY CONVENTION: every monetary input is in YEAR-1 DOLLARS AS TYPED. The
+ * user never enters an inflated figure; escalation happens inside the
+ * projection (see ProjectionInputs), where each stream grows at its own rate
+ * and the whole frame is discounted back for NPV.
+ *
  * All rates/fractions are expressed as decimals in [0, 1] unless noted.
  *
  * The model is intentionally transparent: every assumption is an explicit,
@@ -307,6 +311,34 @@ export interface EfficiencyInputs {
   caseThroughputLoss: number;
 }
 
+/**
+ * The frame the money is projected in: how long, how early the spending starts,
+ * what it is discounted at, and how each stream grows.
+ */
+export interface ProjectionInputs {
+  /** Program years 1..N reported after the pre-revenue period. */
+  horizonYears: number;
+  /**
+   * Years of spending BEFORE the first class arrives — accreditation, program
+   * director recruitment, the first Match cycle. Modeled as program years 0
+   * and −1, with no residents and no revenue.
+   */
+  preRevenueYears: number;
+  /** Discount rate for NPV — a hospital hurdle rate / WACC proxy. */
+  discountRate: number;
+  /** Annual growth in wages and benefits. */
+  salaryInflation: number;
+  /** Annual update to the Per-Resident Amount (CPI-U proxy, per 42 CFR 413.77). */
+  praUpdateRate: number;
+  /**
+   * Annual growth in payment bases: the Medicare IME/capital base, the margin
+   * per staffed location, and the off-service provider's cost. State Medicaid
+   * GME is deliberately NOT escalated — appropriations and per-resident rates
+   * routinely sit flat for years, and assuming growth there flatters the case.
+   */
+  paymentBaseGrowth: number;
+}
+
 /** The full set of model inputs. */
 export interface ModelInputs {
   /** Residents recruited per class (per PGY cohort). Steady state = 4 classes. */
@@ -323,6 +355,7 @@ export interface ModelInputs {
   supervision: SupervisionInputs;
   program: ProgramCostInputs;
   efficiency: EfficiencyInputs;
+  projection: ProjectionInputs;
   /** Per-year clinical parameters keyed by PGY level. */
   clinical: Record<ResidencyYear, ResidentYearClinicalParams>;
 }
@@ -342,7 +375,10 @@ export interface LineItem {
 
 /** Result for a single program year (during ramp-up or at steady state). */
 export interface YearResult {
-  /** 1-based program calendar year (year 1 = first class arrives). */
+  /**
+   * Program calendar year. Year 1 is when the first class arrives; years 0 and
+   * below are the pre-revenue build-up before it.
+   */
   programYear: number;
   /** Residents present that year, by PGY level. */
   residentsByYear: Record<ResidencyYear, number>;
@@ -360,13 +396,35 @@ export interface YearResult {
   warnings: string[];
 }
 
+/** Headline figures for the whole projection. */
+export interface ModelSummary {
+  /** Sum of net value over every modeled year, undiscounted. */
+  nominalCumulativeNet: number;
+  /** Net present value at the discount rate, over the same frame. */
+  npv: number;
+  /**
+   * First program year in which cumulative discounted net turns non-negative,
+   * or null if it never does inside the horizon.
+   */
+  breakevenYear: number | null;
+  /** Undiscounted net value of the mature steady-state year. */
+  steadyStateAnnualNet: number;
+}
+
 /** Full model output. */
 export interface ModelResult {
+  /** Every modeled year, pre-revenue years first. */
+  years: YearResult[];
   /** Per-year results for the phased build-out (classes accumulate to full). */
   rampYears: YearResult[];
-  /** Steady-state year (all four classes present). */
+  /** The mature steady-state year. */
   steadyState: YearResult;
-  /** Cumulative net value across the ramp plus one steady-state year. */
+  summary: ModelSummary;
+  /**
+   * @deprecated Use `summary` instead. Nominal sum of program years 1–5; kept
+   * so external links and saved comparisons do not break silently. It excludes
+   * the pre-revenue years, which now carry the startup cost.
+   */
   fiveYearCumulativeNet: number;
   /** Steady-state benefits and costs, itemized. */
   steadyStateBenefits: LineItem[];

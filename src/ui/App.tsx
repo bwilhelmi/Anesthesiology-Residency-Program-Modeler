@@ -77,6 +77,8 @@ export function App() {
     setInputs((i) => ({ ...i, supervision: { ...i.supervision, ...p } }));
   const patchProg = (p: Partial<ModelInputs["program"]>) =>
     setInputs((i) => ({ ...i, program: { ...i.program, ...p } }));
+  const patchProjection = (p: Partial<ModelInputs["projection"]>) =>
+    setInputs((i) => ({ ...i, projection: { ...i.projection, ...p } }));
   const patchEff = (p: Partial<ModelInputs["efficiency"]>) =>
     setInputs((i) => ({ ...i, efficiency: { ...i.efficiency, ...p } }));
   const patchClinical = (
@@ -501,6 +503,60 @@ export function App() {
               onChange={(v) => patchProg({ facultyTeachingFtePerResident: v })}
               max={0.2}
               format={(v) => `${(v * 100).toFixed(1)}% FTE`}
+            />
+          </Section>
+
+          <Section
+            title="Projection & discounting"
+            subtitle="Horizon, escalation, cost of capital"
+            defaultOpen={false}
+          >
+            <div className="callout">
+              Every dollar you type is in <strong>year-1 dollars</strong>. Escalation
+              happens inside the projection, and the pre-revenue years are discounted at
+              full weight — they are the hole the program climbs out of.
+            </div>
+            <NumberField
+              label="Horizon (program years)"
+              help="Program years reported after the pre-revenue period."
+              value={inputs.projection.horizonYears}
+              onChange={(v) => patchProjection({ horizonYears: Math.max(1, Math.round(v)) })}
+              min={1}
+              max={30}
+            />
+            <NumberField
+              label="Pre-revenue years"
+              help="Years of spending before the first class arrives: accreditation, PD recruitment, the first Match cycle."
+              value={inputs.projection.preRevenueYears}
+              onChange={(v) =>
+                patchProjection({ preRevenueYears: Math.max(0, Math.round(v)) })
+              }
+              min={0}
+              max={5}
+            />
+            <PercentField
+              label="Discount rate"
+              help="Hospital hurdle rate / WACC proxy, used for NPV and breakeven."
+              value={inputs.projection.discountRate}
+              onChange={(v) => patchProjection({ discountRate: v })}
+            />
+            <PercentField
+              label="Salary inflation"
+              help="Applied to all wages and benefits, including resident stipends."
+              value={inputs.projection.salaryInflation}
+              onChange={(v) => patchProjection({ salaryInflation: v })}
+            />
+            <PercentField
+              label="PRA update rate"
+              help="Annual CMS update to the Per-Resident Amount (CPI-U proxy, 42 CFR 413.77)."
+              value={inputs.projection.praUpdateRate}
+              onChange={(v) => patchProjection({ praUpdateRate: v })}
+            />
+            <PercentField
+              label="Payment base growth"
+              help="Applied to the Medicare IME base, the margin per staffed location, and off-service provider cost. State Medicaid GME is deliberately not escalated."
+              value={inputs.projection.paymentBaseGrowth}
+              onChange={(v) => patchProjection({ paymentBaseGrowth: v })}
             />
           </Section>
 

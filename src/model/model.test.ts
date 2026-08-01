@@ -32,12 +32,40 @@ import { loadedResidentCost, residentSalaryCost } from "./program";
 import {
   computeYear,
   countableFteForYear,
+  escalationFactors,
   residentsInProgramYear,
   runModel,
   steadyStateCoverageFte,
+  summarize,
 } from "./model";
-import type { GmeFundingInputs, ModelInputs, ResidencyYear } from "./types";
+import type {
+  GmeFundingInputs,
+  ModelInputs,
+  ResidencyYear,
+  YearResult,
+} from "./types";
 import { RESIDENCY_YEARS } from "./types";
+
+/** A bare YearResult carrying only a net value — enough to test the summary. */
+const toyYear = (programYear: number, netValue: number): YearResult => ({
+  programYear,
+  residentsByYear: { PGY1: 0, PGY2: 0, PGY3: 0, PGY4: 0 },
+  totalResidents: 0,
+  benefits: [],
+  costs: [],
+  totalBenefits: Math.max(0, netValue),
+  totalCosts: Math.max(0, -netValue),
+  netValue,
+  warnings: [],
+});
+
+/** Total of one line-item key across a set of years. */
+const sumAmounts = (years: YearResult[], key: string): number =>
+  years.reduce(
+    (s, y) =>
+      s + [...y.benefits, ...y.costs].filter((x) => x.key === key).reduce((a, b) => a + b.amount, 0),
+    0
+  );
 
 const gme = (over: Partial<GmeFundingInputs> = {}): GmeFundingInputs => ({
   ...DEFAULT_INPUTS.gme,
@@ -531,11 +559,14 @@ describe("Site allocation and countable FTE (P2.1)", () => {
       program: { ...DEFAULT_INPUTS.program, participatingSiteSupportAnnual: 250_000 },
     };
     const withSupport = runModel(paying);
-    expect(withSupport.steadyState.costs.find((c) => c.key === "sitesupport")!.amount).toBe(
-      250_000
-    );
+    // Steady state is program year 6, so the year-1 dollars have escalated.
+    const escalated =
+      250_000 *
+      escalationFactors(DEFAULT_INPUTS.projection, withSupport.steadyState.programYear).wage;
+    expect(withSupport.steadyState.costs.find((c) => c.key === "sitesupport")!.amount)
+      .toBeCloseTo(escalated, 6);
     expect(withSupport.steadyState.totalCosts).toBeCloseTo(
-      base.steadyState.totalCosts + 250_000,
+      base.steadyState.totalCosts + escalated,
       6
     );
   });
@@ -582,6 +613,127 @@ describe("Attrition (P2.2)", () => {
     // is 7.65 × 4 = 30.6 — not the 40 a naive headcount × 4 would suggest.
     const y5 = countableFteForYear(lossy, 5, residentsInProgramYear(lossy, 5));
     expect(buildPermanentCap(y5.byLevel)).toBeCloseTo(30.6, 10);
+  });
+});
+
+describe("Projection frame (P3.1)", () => {
+  it("models pre-revenue years with spending and no residents", () => {
+    const r = runModel(DEFAULT_INPUTS);
+    const pre = r.years.filter((y) => y.programYear <= 0);
+    expect(pre.map((y) => y.programYear)).toEqual([-1, 0]);
+    for (const y of pre) {
+      expect(y.totalResidents).toBe(0);
+      expect(y.totalBenefits).toBe(0);
+      expect(y.netValue).toBeLessThan(0);
+    }
+    // The startup cost lands in the pre-revenue years, split evenly.
+    const startupCharged = sumAmounts(pre, "startup");
+    expect(startupCharged).toBeGreaterThan(0);
+    expect(pre[0].costs.find((c) => c.key === "startup")!.amount).toBeCloseTo(
+      (DEFAULT_INPUTS.program.startupCost *
+        escalationFactors(DEFAULT_INPUTS.projection, -1).wage) /
+        2,
+      6
+    );
+    // The final pre-revenue year carries more program cost than the first.
+    expect(pre[1].costs.find((c) => c.key === "support")!.amount).toBeGreaterThan(
+      pre[0].costs.find((c) => c.key === "support")!.amount
+    );
+  });
+
+  it("runs the full horizon and no longer double-charges startup in year 1", () => {
+    const r = runModel(DEFAULT_INPUTS);
+    expect(r.years).toHaveLength(DEFAULT_INPUTS.projection.horizonYears + 2);
+    expect(r.years[r.years.length - 1].programYear).toBe(
+      DEFAULT_INPUTS.projection.horizonYears
+    );
+    expect(r.rampYears.map((y) => y.programYear)).toEqual([1, 2, 3, 4]);
+    for (const y of r.years.filter((x) => x.programYear >= 1)) {
+      expect(y.costs.some((c) => c.key === "startup")).toBe(false);
+    }
+  });
+
+  it("escalates each stream at its own rate, from year 1 = 1.0", () => {
+    const f1 = escalationFactors(DEFAULT_INPUTS.projection, 1);
+    expect(f1).toEqual({ wage: 1, pra: 1, base: 1 });
+    const f3 = escalationFactors(DEFAULT_INPUTS.projection, 3);
+    expect(f3.wage).toBeCloseTo(Math.pow(1.03, 2), 10);
+    expect(f3.pra).toBeCloseTo(Math.pow(1.025, 2), 10);
+    // Pre-revenue years sit below the typed year-1 dollars.
+    expect(escalationFactors(DEFAULT_INPUTS.projection, -1).wage).toBeLessThan(1);
+
+    const r = runModel(DEFAULT_INPUTS);
+    const y1 = r.years.find((y) => y.programYear === 1)!;
+    const y2 = r.years.find((y) => y.programYear === 2)!;
+    const stipend = (y: (typeof r.years)[number]) =>
+      y.costs.find((c) => c.key === "residentsalary")!.amount / y.totalResidents;
+    expect(stipend(y2) / stipend(y1)).toBeCloseTo(1.03, 10);
+  });
+});
+
+describe("Summary metrics (P3.2)", () => {
+  /** A three-year toy frame: one pre-revenue year and two program years. */
+  const toy: YearResult[] = [
+    toyYear(0, -100),
+    toyYear(1, -50),
+    toyYear(2, 300),
+  ];
+  const projection = {
+    ...DEFAULT_INPUTS.projection,
+    preRevenueYears: 1,
+    discountRate: 0.1,
+  };
+
+  it("discounts from period zero in the first modeled year", () => {
+    const s = summarize(toy, projection);
+    // -100/1.1^0 + -50/1.1^1 + 300/1.1^2 = -100 - 45.4545… + 247.9338…
+    expect(s.npv).toBeCloseTo(-100 + -50 / 1.1 + 300 / 1.21, 8);
+    expect(s.nominalCumulativeNet).toBe(150);
+  });
+
+  it("equals the nominal sum at a zero discount rate", () => {
+    const s = summarize(toy, { ...projection, discountRate: 0 });
+    expect(s.npv).toBeCloseTo(s.nominalCumulativeNet, 10);
+  });
+
+  it("reports the first program year where cumulative discounted net turns positive", () => {
+    expect(summarize(toy, projection).breakevenYear).toBe(2);
+  });
+
+  it("reports null breakeven when the program never recovers", () => {
+    const losing = [toyYear(0, -100), toyYear(1, -50), toyYear(2, -10)];
+    expect(summarize(losing, projection).breakevenYear).toBeNull();
+  });
+
+  it("keeps the deprecated five-year figure as a nominal sum of years 1-5", () => {
+    const r = runModel(DEFAULT_INPUTS);
+    const expected = r.years
+      .filter((y) => y.programYear >= 1 && y.programYear <= 5)
+      .reduce((s, y) => s + y.netValue, 0);
+    expect(r.fiveYearCumulativeNet).toBeCloseTo(expected, 6);
+  });
+
+  it("summarises the default program end to end", () => {
+    const r = runModel(DEFAULT_INPUTS);
+    expect(r.summary.steadyStateAnnualNet).toBeCloseTo(r.steadyState.netValue, 10);
+    expect(r.summary.nominalCumulativeNet).toBeCloseTo(
+      r.years.reduce((s, y) => s + y.netValue, 0),
+      6
+    );
+    // A positive-NPV default program should break even inside the horizon.
+    if (r.summary.npv > 0) expect(r.summary.breakevenYear).not.toBeNull();
+  });
+
+  it("is monotonically non-increasing in the discount rate", () => {
+    let previous = Infinity;
+    for (const discountRate of [0, 0.03, 0.06, 0.09, 0.12]) {
+      const npv = runModel({
+        ...DEFAULT_INPUTS,
+        projection: { ...DEFAULT_INPUTS.projection, discountRate },
+      }).summary.npv;
+      expect(npv).toBeLessThanOrEqual(previous + 1e-6);
+      previous = npv;
+    }
   });
 });
 

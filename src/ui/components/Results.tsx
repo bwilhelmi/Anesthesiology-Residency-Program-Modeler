@@ -75,12 +75,14 @@ export function Results({ result }: { result: ModelResult }) {
           </span>
         </div>
         <div className="headline-card">
-          <span className="headline-label">5-year cumulative net (incl. startup)</span>
-          <span className={`headline-value ${netClass(result.fiveYearCumulativeNet)}`}>
-            {fig(result.fiveYearCumulativeNet)}
+          <span className="headline-label">Net present value</span>
+          <span className={`headline-value ${netClass(result.summary.npv)}`}>
+            {fig(result.summary.npv)}
           </span>
           <span className="headline-sub">
-            4 ramp years + 1 steady-state year, less one-time startup cost
+            {result.summary.breakevenYear === null
+              ? "Does not break even inside the horizon"
+              : `Breaks even in program year ${result.summary.breakevenYear}`}
           </span>
         </div>
       </div>
