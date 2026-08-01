@@ -374,6 +374,66 @@ a:hover {
   padding-bottom: 13px;
 }
 
+/* --- Choice (radio) groups ------------------------------------------------ */
+/* A fieldset cannot use the two-column grid the other fields share: the legend
+   participates in its own box. Lay it out as a block and let the options stack,
+   each option carrying the consequence of picking it. */
+
+.field-choice {
+  display: block;
+  margin: 0;
+  border: none;
+  border-top: 1px solid var(--color-divider);
+  padding: 13px 0 0;
+}
+.field-choice > .field-label {
+  display: block;
+  padding: 0;
+  margin-bottom: var(--space-2);
+}
+.choice-options {
+  display: grid;
+  gap: var(--space-1);
+}
+.choice-option {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border: 1px solid var(--color-neutral-300);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  cursor: pointer;
+}
+.choice-option:hover {
+  border-color: var(--color-neutral-500);
+}
+/* Selection is carried by weight and a heavier rule, not by hue alone. */
+.choice-option.selected {
+  border-color: var(--color-text);
+  box-shadow: inset 0 0 0 1px var(--color-text);
+}
+.choice-option input {
+  margin: 2px 0 0;
+  accent-color: var(--color-accent-700);
+}
+.choice-body {
+  display: grid;
+  gap: 1px;
+}
+.choice-label {
+  font-size: 14px;
+  font-weight: 500;
+}
+.choice-option.selected .choice-label {
+  font-weight: 600;
+}
+.choice-help {
+  font-size: 12.5px;
+  line-height: 18px;
+  color: var(--color-neutral-700);
+}
+
 .grid-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -944,13 +1004,11 @@ table.ramp thead th {
 table.ramp tbody td {
   border-bottom: 1px solid var(--color-divider);
 }
-/* Total row: struck above by a full rule, set in weight 600. */
-table.ramp tr.steady td {
+/* The mature year — where the cap, rolling average, and ratio cap all bind —
+   is the row a reader should anchor on, so it is ruled off above. */
+table.ramp tr.mature td {
   font-weight: 600;
-  padding-top: 9px;
-  padding-bottom: 9px;
   border-top: 1px solid var(--color-text);
-  border-bottom: none;
 }
 
 /* Negatives are parenthesised and one step lighter. No red, no green. */
@@ -970,6 +1028,178 @@ td.pos,
   line-height: 19px;
   color: var(--color-neutral-700);
   margin: 0;
+}
+
+/* --- Scenario presets ----------------------------------------------------- */
+
+.scenario-picker {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.scenario-btn {
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-neutral-400);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  color: var(--color-text);
+  cursor: pointer;
+}
+.scenario-btn:hover {
+  border-color: var(--color-text);
+}
+.chip {
+  font-size: 11.5px;
+  letter-spacing: 0.03em;
+  padding: 2px var(--space-2);
+  border: 1px dashed var(--color-neutral-500);
+  border-radius: 999px;
+  color: var(--color-neutral-700);
+  white-space: nowrap;
+}
+
+/* --- Tornado -------------------------------------------------------------- */
+/* Plain divs, no chart library: the bar is a span of metric values drawn on a
+   shared scale, with a rule marking the base case. Width carries the meaning,
+   so it survives grayscale. */
+
+.tornado {
+  margin: var(--space-8) 0;
+}
+.tornado-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.tornado-list {
+  list-style: none;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+.tornado-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 1.1fr) minmax(90px, 2fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+}
+.tornado-label {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--color-neutral-800);
+}
+.tornado-track {
+  position: relative;
+  display: block;
+  height: 16px;
+  background: var(--color-neutral-200);
+  border-radius: var(--radius-sm);
+}
+.tornado-bar {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  background: var(--color-accent-400);
+  border: 1px solid var(--color-accent-700);
+  border-radius: var(--radius-sm);
+  min-width: 2px;
+}
+.tornado-axis {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 1px;
+  background: var(--color-text);
+}
+.tornado-values {
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums lining;
+  color: var(--color-neutral-700);
+  white-space: nowrap;
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: var(--font-body);
+  font-size: inherit;
+  color: var(--color-accent-700);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* --- Year table interaction ----------------------------------------------- */
+
+.table-caption {
+  margin: 0 0 var(--space-2);
+  font-size: 12.5px;
+  line-height: 18px;
+  color: var(--color-neutral-700);
+  padding-bottom: var(--space-2);
+}
+.ramp tbody tr {
+  cursor: pointer;
+}
+.ramp tbody tr:hover {
+  background: var(--color-neutral-100);
+}
+/* Pre-launch years are shaded and italicised — no residents, only spending. */
+.ramp tr.prelaunch td {
+  font-style: italic;
+  color: var(--color-neutral-700);
+  background: var(--color-neutral-200);
+}
+.ramp tr.selected td {
+  box-shadow: inset 0 -2px 0 var(--color-text);
+  font-weight: 600;
+}
+
+@media (max-width: 720px) {
+  .tornado-row {
+    grid-template-columns: 1fr;
+    gap: var(--space-1);
+  }
+  .tornado-values {
+    text-align: right;
+  }
+}
+
+/* --- Modeling warnings ---------------------------------------------------- */
+/* No hue carries meaning here: the banner is identified by its rule, its label,
+   and its position above the headline, so it survives a grayscale board deck. */
+
+.warnings {
+  border: 1px solid var(--color-neutral-400);
+  border-left: 3px solid var(--color-accent);
+  background: var(--color-neutral-100);
+  padding: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+.warnings-h {
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-neutral-800);
+  margin: 0 0 var(--space-2);
+}
+.warnings-list {
+  margin: 0;
+  padding-left: var(--space-5);
+  display: grid;
+  gap: var(--space-2);
+}
+.warnings-list li {
+  font-size: 13px;
+  line-height: 19px;
+  color: var(--color-neutral-800);
 }
 
 /* --- Footnotes and bibliography ------------------------------------------- */

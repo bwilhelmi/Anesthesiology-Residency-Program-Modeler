@@ -1,10 +1,14 @@
 import { describe, it, expect } from "vitest";
 import { REFERENCES } from "./components/References";
+import appSource from "./App.tsx?raw";
+import hospitalPickerSource from "./components/HospitalPicker.tsx?raw";
+import regionPickerSource from "./components/RegionPicker.tsx?raw";
 
 /**
  * Guards on the bibliography: every reference is uniquely numbered and carries a
- * real URL, and the numbers cited in the UI (1–6) all resolve to an entry. If a
- * <Cite ns={[n]} /> is added for a new source, add the reference here too.
+ * real URL, and every number cited in the UI resolves to an entry. Numbers are
+ * anchor targets (#ref-N), so new sources are appended, never renumbered — this
+ * test is what makes that rule enforceable.
  */
 describe("bibliography references", () => {
   it("has unique, sequential reference numbers", () => {
@@ -21,9 +25,35 @@ describe("bibliography references", () => {
   });
 
   it("every footnote number cited in the UI resolves to a reference", () => {
-    // Numbers used by <Cite> across the pickers.
-    const citedInUi = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
+    // Scanned rather than listed by hand, so a <Cite> added to a new field
+    // cannot quietly point at a reference that does not exist.
     const known = new Set(REFERENCES.map((r) => r.n));
-    for (const n of citedInUi) expect(known.has(n)).toBe(true);
+    const sources = [appSource, hospitalPickerSource, regionPickerSource];
+
+    const cited = new Set<number>();
+    for (const src of sources) {
+      for (const m of src.matchAll(/(?:ns|cite)=\{\[([\d,\s]+)\]\}/g)) {
+        for (const n of m[1].split(",")) cited.add(Number(n.trim()));
+      }
+    }
+
+    expect(cited.size).toBeGreaterThan(0);
+    for (const n of cited) expect(known.has(n)).toBe(true);
+  });
+
+  it("cites the regulatory and accreditation sources the v2 model relies on", () => {
+    const byUrl = new Map(REFERENCES.map((r) => [r.url, r]));
+    for (const section of [
+      "section-413.79",
+      "section-413.77",
+      "section-412.105",
+      "section-412.322",
+      "section-415.110",
+      "section-415.178",
+    ]) {
+      expect([...byUrl.keys()].some((u) => u.includes(section))).toBe(true);
+    }
+    expect([...byUrl.keys()].some((u) => u.includes("acgme.org"))).toBe(true);
+    expect([...byUrl.keys()].some((u) => u.includes("aamc.org/data-reports"))).toBe(true);
   });
 });
