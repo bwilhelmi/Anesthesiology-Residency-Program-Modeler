@@ -10,13 +10,19 @@
 
 import {
   coverageFteForYear,
+  incrementalSupervisionCostPerLocation,
+  juniorityWeight,
   laborSubstitutionValue,
-  loaded,
   offServiceValue,
+  staffedLocationDemand,
   totalCoverageFte,
 } from "./clinical";
+import {
+  MEDICAL_DIRECTION_CONCURRENCY_LIMIT,
+  TEACHING_ANESTHESIA_CONCURRENCY_LIMIT,
+} from "./constants";
 import { directGme, marginalIme, medicaidGme } from "./gme";
-import { annualProgramSupportCost, residentSalaryCost } from "./program";
+import { annualProgramSupportCost, loadedResidentCost, residentSalaryCost } from "./program";
 import type {
   LineItem,
   ModelInputs,
@@ -57,6 +63,7 @@ export function computeYear(
     0
   );
   const totalFte = totalResidents; // one clinical FTE headcount per resident
+  const warnings: string[] = [];
 
   /* ----------------------------- Benefits ------------------------------- */
 
@@ -64,21 +71,61 @@ export function computeYear(
   const ime = marginalIme(totalFte, inputs.gme);
   const medicaid = medicaidGme(totalFte, inputs.gme);
 
-  // Clinical labor substitution + off-service service value, summed by level.
-  let laborValue = 0;
+  /*
+   * Coverage, labor value, and the teaching margin loss all move together, so
+   * they are accumulated raw and then scaled by a single demand cap factor: a
+   * hospital cannot harvest coverage value for rooms it does not run.
+   */
+  let rawCoverage = 0;
+  let rawLaborValue = 0;
+  let rawThroughputLoss = 0;
   let offService = 0;
   for (const year of RESIDENCY_YEARS) {
     const n = residentsByYear[year] ?? 0;
     if (n === 0) continue;
-    laborValue +=
-      n *
-      laborSubstitutionValue(
-        year,
-        inputs.clinical[year],
-        inputs.salaries,
-        inputs.efficiency
-      );
-    offService += n * offServiceValue(inputs.clinical[year]);
+    const params = inputs.clinical[year];
+    const coveredLocations = n * coverageFteForYear(params);
+    rawCoverage += coveredLocations;
+    rawLaborValue += n * laborSubstitutionValue(params, inputs.salaries);
+    // Teaching slowdown, charged once here as lost margin on the covered
+    // locations and weighted toward junior residents.
+    rawThroughputLoss +=
+      coveredLocations *
+      inputs.efficiency.annualMarginPerStaffedLocation *
+      inputs.efficiency.caseThroughputLoss *
+      juniorityWeight(year);
+    offService += n * offServiceValue(params);
+  }
+
+  const demand = staffedLocationDemand(inputs);
+  const demandCapFactor = rawCoverage > demand && rawCoverage > 0 ? demand / rawCoverage : 1;
+  if (demandCapFactor < 1) {
+    warnings.push(
+      `Modeled resident coverage (${round1(rawCoverage)} anesthetist-equivalent FTE) ` +
+        `exceeds the ${round1(demand)} staffed anesthetizing locations the hospital runs ` +
+        `on an average day. Coverage value, supervision cost, and throughput loss are ` +
+        `capped at demand: residents beyond that point add cost but no additional ` +
+        `coverage value.`
+    );
+  }
+  const coveredLocations = rawCoverage * demandCapFactor;
+  const laborValue = rawLaborValue * demandCapFactor;
+
+  if (inputs.supervision.maxResidentSupervisionRatio > TEACHING_ANESTHESIA_CONCURRENCY_LIMIT) {
+    warnings.push(
+      `Max resident cases per teaching anesthesiologist ` +
+        `(${inputs.supervision.maxResidentSupervisionRatio}) exceeds the Medicare ` +
+        `teaching-rule concurrency of ${TEACHING_ANESTHESIA_CONCURRENCY_LIMIT} in ` +
+        `42 CFR 415.178; cases beyond it are not paid at the full base-unit amount.`
+    );
+  }
+  if (inputs.supervision.maxCrnaSupervisionRatio > MEDICAL_DIRECTION_CONCURRENCY_LIMIT) {
+    warnings.push(
+      `Max CRNA cases per anesthesiologist ` +
+        `(${inputs.supervision.maxCrnaSupervisionRatio}) exceeds the medical-direction ` +
+        `limit of ${MEDICAL_DIRECTION_CONCURRENCY_LIMIT} in 42 CFR 415.110; beyond it ` +
+        `the service is medically supervised, not medically directed.`
+    );
   }
 
   const benefits: LineItem[] = [
@@ -105,7 +152,10 @@ export function computeYear(
       key: "labor",
       label: "Clinical labor substitution (CRNA coverage offset)",
       amount: laborValue,
-      detail: "Anesthetist-equivalent coverage residents provide, valued at fully-loaded CRNA cost.",
+      detail:
+        demandCapFactor < 1
+          ? `Anesthetist-equivalent coverage residents provide, valued at fully-loaded CRNA cost — capped at the ${round1(demand)} staffed locations the hospital runs.`
+          : "Anesthetist-equivalent coverage residents provide, valued at fully-loaded CRNA cost.",
     },
     {
       key: "offservice",
@@ -121,20 +171,17 @@ export function computeYear(
   const supportCost = annualProgramSupportCost(inputs, totalResidents);
 
   // Teaching efficiency loss: net margin lost on the resident-covered locations
-  // due to teaching slowdown, valued at the margin per staffed location.
-  let efficiencyLoss = 0;
-  for (const year of RESIDENCY_YEARS) {
-    const n = residentsByYear[year] ?? 0;
-    if (n === 0) continue;
-    const coveredLocations =
-      n * coverageFteForYear(year, inputs.clinical[year], inputs.efficiency);
-    // The throughput loss is embedded in coverageFte; here we value the
-    // remaining slowdown as lost margin on covered locations.
-    efficiencyLoss +=
-      coveredLocations *
-      inputs.efficiency.annualMarginPerStaffedLocation *
-      inputs.efficiency.teachingThroughputLoss;
-  }
+  // due to teaching slowdown, valued at the margin per staffed location. Charged
+  // exactly once (it is no longer also netted out of the coverage FTE).
+  const efficiencyLoss = rawThroughputLoss * demandCapFactor;
+
+  // Incremental attending supervision: resident rooms tie up more attending time
+  // per room (1:2, 42 CFR 415.178) than medically directed CRNA rooms (1:4,
+  // 42 CFR 415.110). That extra attending time is a real cost of the teaching
+  // staffing model and scales with the covered locations.
+  const supervisionCost =
+    coveredLocations *
+    incrementalSupervisionCostPerLocation(inputs.salaries, inputs.supervision);
 
   const costs: LineItem[] = [
     {
@@ -142,8 +189,8 @@ export function computeYear(
       label: "Resident stipends + benefits",
       amount: residentCost,
       detail: `${totalResidents} resident(s) at ${fmt(
-        loaded(inputs.salaries.residentSalary, inputs.salaries.benefitLoadRate)
-      )} fully loaded.`,
+        loadedResidentCost(inputs.salaries)
+      )} fully loaded (stipend + ${fmt(inputs.salaries.residentBenefitAnnual)} benefits).`,
     },
     {
       key: "support",
@@ -156,6 +203,12 @@ export function computeYear(
       label: "Teaching efficiency / throughput loss",
       amount: efficiencyLoss,
       detail: "Lost clinical margin from slower teaching cases, weighted toward junior residents.",
+    },
+    {
+      key: "supervision",
+      label: "Incremental attending supervision (1:2 teaching vs 1:4 direction)",
+      amount: supervisionCost,
+      detail: `${round1(coveredLocations)} resident-covered location(s) × the extra attending time a teaching room consumes at 1:${inputs.supervision.maxResidentSupervisionRatio} (42 CFR 415.178) versus a medically directed CRNA room at 1:${inputs.supervision.maxCrnaSupervisionRatio} (42 CFR 415.110).`,
     },
   ];
 
@@ -171,6 +224,7 @@ export function computeYear(
     totalBenefits,
     totalCosts,
     netValue: totalBenefits - totalCosts,
+    warnings,
   };
 }
 
@@ -198,6 +252,7 @@ export function runModel(inputs: ModelInputs): ModelResult {
     fiveYearCumulativeNet,
     steadyStateBenefits: steadyState.benefits,
     steadyStateCosts: steadyState.costs,
+    warnings: dedupe([...rampYears, steadyState].flatMap((y) => y.warnings)),
   };
 }
 
@@ -213,6 +268,15 @@ export function steadyStateCoverageFte(inputs: ModelInputs): number {
 
 function sum(xs: number[]): number {
   return xs.reduce((a, b) => a + b, 0);
+}
+
+/** De-duplicate strings, preserving first-seen order. */
+function dedupe(xs: string[]): string[] {
+  return Array.from(new Set(xs));
+}
+
+function round1(x: number): string {
+  return x.toFixed(1);
 }
 
 function fmt(x: number): string {

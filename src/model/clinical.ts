@@ -8,27 +8,29 @@
  *
  * For each PGY level we estimate an "anesthetist-equivalent coverage FTE":
  *
- *     coverageFte = fractionOnAnesthesia
- *                 x anesthesiaCoverageFte
- *                 x (1 - teachingThroughputLoss weighted by juniority)
+ *     coverageFte = fractionOnAnesthesia x anesthesiaCoverageFte
+ *
+ * This is pure staffing equivalence. Teaching slowdown is NOT netted out here:
+ * it is charged exactly once, in the model, as lost margin on the covered
+ * locations (see EfficiencyInputs.caseThroughputLoss).
  *
  * The covered locations are valued at the cost of the CRNA labor they offset
  * (a fully-loaded CRNA FTE). We separately credit intern-year service value to
- * host departments (off-service rotations), and separately debit the teaching
- * throughput/efficiency loss on the margin per staffed location.
+ * host departments (off-service rotations).
  *
- * Supervision limits: residents let a teaching anesthesiologist cover up to
- * `maxResidentSupervisionRatio` concurrent cases at 100% billing, which is what
- * makes resident coverage economically attractive relative to hiring CRNAs (who
- * also require an anesthesiologist for medical direction, up to a ratio of 4).
+ * Supervision limits cut the other way and are a real cost: residents let a
+ * teaching anesthesiologist cover only `maxResidentSupervisionRatio` concurrent
+ * cases at full payment (2 under 42 CFR 415.178), against
+ * `maxCrnaSupervisionRatio` medically directed CRNA rooms (4 under 42 CFR
+ * 415.110). See incrementalSupervisionCostPerLocation().
  */
 
 import type {
-  EfficiencyInputs,
   ModelInputs,
   ResidencyYear,
   ResidentYearClinicalParams,
   SalaryInputs,
+  SupervisionInputs,
 } from "./types";
 import { RESIDENCY_YEARS } from "./types";
 
@@ -57,27 +59,42 @@ export function juniorityWeight(year: ResidencyYear): number {
 
 /**
  * Anesthetist-equivalent coverage FTE delivered by one resident at a given
- * level, net of teaching slowdown.
+ * level — pure staffing equivalence, with no throughput discount applied.
+ *
+ * Slower individual case conduct is already reflected in the per-level
+ * `anesthesiaCoverageFte` ramp (a CA-1 is booked as a fraction of an anesthetist
+ * precisely because they are slower); the remaining economic effect of teaching
+ * on the hospital's case volume is charged once as margin loss in the model.
  */
-export function coverageFteForYear(
-  year: ResidencyYear,
-  params: ResidentYearClinicalParams,
-  efficiency: EfficiencyInputs
-): number {
-  const gross = params.fractionOnAnesthesia * params.anesthesiaCoverageFte;
-  const lossFactor = 1 - efficiency.teachingThroughputLoss * juniorityWeight(year);
-  return Math.max(0, gross * lossFactor);
+export function coverageFteForYear(params: ResidentYearClinicalParams): number {
+  return Math.max(0, params.fractionOnAnesthesia * params.anesthesiaCoverageFte);
 }
 
 /** Labor value (CRNA cost offset) of one resident-year at a given level. */
 export function laborSubstitutionValue(
-  year: ResidencyYear,
   params: ResidentYearClinicalParams,
-  salaries: SalaryInputs,
-  efficiency: EfficiencyInputs
+  salaries: SalaryInputs
 ): number {
   const crnaLoaded = loaded(salaries.crnaSalary, salaries.benefitLoadRate);
-  return coverageFteForYear(year, params, efficiency) * crnaLoaded;
+  return coverageFteForYear(params) * crnaLoaded;
+}
+
+/**
+ * Incremental attending supervision cost per resident-covered location:
+ * attendings cover fewer concurrent rooms with residents (1:2 under the
+ * Medicare teaching rule, 42 CFR 415.178) than with CRNAs under medical
+ * direction (1:4, 42 CFR 415.110). Professional-fee revenue per room is
+ * treated as approximately neutral between the two staffing modes; the
+ * economic delta is on the supervision-cost side.
+ */
+export function incrementalSupervisionCostPerLocation(
+  salaries: SalaryInputs,
+  supervision: SupervisionInputs
+): number {
+  const attendingLoaded = loaded(salaries.anesthesiologistSalary, salaries.benefitLoadRate);
+  const perRoomWithResidents = 1 / Math.max(1, supervision.maxResidentSupervisionRatio);
+  const perRoomWithCrnas = 1 / Math.max(1, supervision.maxCrnaSupervisionRatio);
+  return Math.max(0, attendingLoaded * (perRoomWithResidents - perRoomWithCrnas));
 }
 
 /** Intern / off-service service value delivered to host departments. */
@@ -97,7 +114,7 @@ export function totalCoverageFte(
 ): number {
   return RESIDENCY_YEARS.reduce((sum, year) => {
     const n = residentsByYear[year] ?? 0;
-    return sum + n * coverageFteForYear(year, inputs.clinical[year], inputs.efficiency);
+    return sum + n * coverageFteForYear(inputs.clinical[year]);
   }, 0);
 }
 

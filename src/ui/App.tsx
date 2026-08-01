@@ -156,9 +156,17 @@ export function App() {
               prefix="$"
               step={1000}
             />
+            <NumberField
+              label="Resident benefits / yr"
+              help="Absolute dollars, not a percentage: health premiums, retirement, payroll taxes, liability, licensure. These do not scale with a trainee stipend, so a percentage load understates them (typical all-in: $25k–$30k)."
+              value={inputs.salaries.residentBenefitAnnual}
+              onChange={(v) => patchSalaries({ residentBenefitAnnual: Math.max(0, v) })}
+              prefix="$"
+              step={1000}
+            />
             <PercentField
-              label="Benefit / fringe load"
-              help="Added on top of base salary for benefits, taxes, malpractice."
+              label="Benefit / fringe load (attendings & CRNAs)"
+              help="Added on top of base salary for benefits, taxes, malpractice. Residents use the absolute figure above instead."
               value={inputs.salaries.benefitLoadRate}
               onChange={(v) => patchSalaries({ benefitLoadRate: v })}
             />
@@ -248,14 +256,14 @@ export function App() {
               step={5000}
             />
             <PercentField
-              label="Medicare inpatient share"
-              help="Medicare share of inpatient days; apportions Direct GME."
+              label="Medicare share of inpatient days (FFS + Medicare Advantage)"
+              help="The Medicare utilization ratio that apportions Direct GME. Medicare Advantage days belong in it (42 CFR 413.76 et seq.); the MA-related DGME is paid through the associated add-on stream."
               value={inputs.gme.medicareInpatientShare}
               onChange={(v) => patchGme({ medicareInpatientShare: v })}
             />
             <NumberField
-              label="Medicare inpatient operating payments / yr"
-              help="Base to which the IME percentage add-on applies."
+              label="Medicare inpatient operating base payments subject to the IME add-on / yr"
+              help="FFS DRG payments excluding the IME and DSH add-ons themselves. Include the MA-related IME base if you are modeling Medicare Advantage IME."
               value={inputs.gme.medicareInpatientOperatingPayments}
               onChange={(v) => patchGme({ medicareInpatientOperatingPayments: v })}
               prefix="$"
@@ -370,10 +378,10 @@ export function App() {
               step={25000}
             />
             <SliderField
-              label="Teaching throughput loss"
-              help="Case slowdown when staffed by a resident vs. an experienced anesthetist."
-              value={inputs.efficiency.teachingThroughputLoss}
-              onChange={(v) => patchEff({ teachingThroughputLoss: v })}
+              label="Case throughput loss"
+              help="Lost case margin from teaching slowdown. Charged once, on the locations residents cover, weighted toward junior residents — the coverage capability sliders below already carry the staffing side."
+              value={inputs.efficiency.caseThroughputLoss}
+              onChange={(v) => patchEff({ caseThroughputLoss: v })}
               max={0.5}
             />
           </Section>

@@ -35,10 +35,33 @@ function fig(n: number, opts: { compact?: boolean } = {}): string {
   return currency(n, { ...opts, accounting: true });
 }
 
+/**
+ * Modeling caveats raised by the current inputs. Deliberately not colored: the
+ * interface carries no meaning by hue, so this reads as a bordered, labeled
+ * block in print and in the grayscale proof.
+ */
+function Warnings({ warnings }: { warnings: string[] }) {
+  if (warnings.length === 0) return null;
+  return (
+    <section className="warnings" role="status" aria-label="Modeling warnings">
+      <h3 className="warnings-h">
+        Check these assumptions ({warnings.length})
+      </h3>
+      <ul className="warnings-list">
+        {warnings.map((w) => (
+          <li key={w}>{w}</li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 export function Results({ result }: { result: ModelResult }) {
   const ss = result.steadyState;
   return (
     <div className="results">
+      <Warnings warnings={result.warnings} />
+
       <div className="headline">
         <div className="headline-card">
           <span className="headline-label">Steady-state annual net value</span>

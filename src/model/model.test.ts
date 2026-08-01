@@ -9,16 +9,22 @@ import {
 } from "./gme";
 import {
   coverageFteForYear,
+  incrementalSupervisionCostPerLocation,
+  juniorityWeight,
   laborSubstitutionValue,
   loaded,
   offServiceValue,
+  staffedLocationDemand,
 } from "./clinical";
+import { loadedResidentCost, residentSalaryCost } from "./program";
 import {
   computeYear,
   residentsInProgramYear,
   runModel,
+  steadyStateCoverageFte,
 } from "./model";
 import type { GmeFundingInputs, ModelInputs } from "./types";
+import { RESIDENCY_YEARS } from "./types";
 
 const gme = (over: Partial<GmeFundingInputs> = {}): GmeFundingInputs => ({
   ...DEFAULT_INPUTS.gme,
@@ -108,19 +114,24 @@ describe("Clinical value", () => {
   });
 
   it("intern coverage FTE is small; CA-3 coverage is much larger", () => {
-    const eff = DEFAULT_INPUTS.efficiency;
-    const intern = coverageFteForYear("PGY1", DEFAULT_INPUTS.clinical.PGY1, eff);
-    const ca3 = coverageFteForYear("PGY4", DEFAULT_INPUTS.clinical.PGY4, eff);
+    const intern = coverageFteForYear(DEFAULT_INPUTS.clinical.PGY1);
+    const ca3 = coverageFteForYear(DEFAULT_INPUTS.clinical.PGY4);
     expect(intern).toBeGreaterThan(0);
     expect(ca3).toBeGreaterThan(intern);
   });
 
+  it("coverage FTE is pure staffing equivalence, with no throughput discount", () => {
+    const p = DEFAULT_INPUTS.clinical.PGY2;
+    expect(coverageFteForYear(p)).toBeCloseTo(
+      p.fractionOnAnesthesia * p.anesthesiaCoverageFte,
+      10
+    );
+  });
+
   it("labor substitution value scales with loaded CRNA cost", () => {
     const val = laborSubstitutionValue(
-      "PGY4",
       DEFAULT_INPUTS.clinical.PGY4,
-      DEFAULT_INPUTS.salaries,
-      DEFAULT_INPUTS.efficiency
+      DEFAULT_INPUTS.salaries
     );
     expect(val).toBeGreaterThan(0);
     expect(val).toBeLessThan(
@@ -131,6 +142,157 @@ describe("Clinical value", () => {
   it("intern delivers meaningful off-service value", () => {
     const v = offServiceValue(DEFAULT_INPUTS.clinical.PGY1);
     expect(v).toBeGreaterThan(0);
+  });
+});
+
+describe("Incremental attending supervision (P0.1)", () => {
+  it("prices the extra attending time a 1:2 teaching room costs vs a 1:4 CRNA room", () => {
+    // Attending loaded at $500,000 (400k base + 25% load), 1:2 vs 1:4.
+    const perLocation = incrementalSupervisionCostPerLocation(
+      { ...DEFAULT_INPUTS.salaries, anesthesiologistSalary: 400_000, benefitLoadRate: 0.25 },
+      { maxResidentSupervisionRatio: 2, maxCrnaSupervisionRatio: 4 }
+    );
+    expect(10 * perLocation).toBeCloseTo(1_250_000, 6);
+  });
+
+  it("is zero when residents and CRNAs tie up the same attending time", () => {
+    expect(
+      incrementalSupervisionCostPerLocation(DEFAULT_INPUTS.salaries, {
+        maxResidentSupervisionRatio: 4,
+        maxCrnaSupervisionRatio: 4,
+      })
+    ).toBe(0);
+  });
+
+  it("appears as a cost line proportional to covered locations", () => {
+    const cohort = residentsInProgramYear(DEFAULT_INPUTS, 4);
+    const r = computeYear(DEFAULT_INPUTS, 4, cohort);
+    const line = r.costs.find((c) => c.key === "supervision");
+    const expected =
+      steadyStateCoverageFte(DEFAULT_INPUTS) *
+      incrementalSupervisionCostPerLocation(
+        DEFAULT_INPUTS.salaries,
+        DEFAULT_INPUTS.supervision
+      );
+    expect(line).toBeDefined();
+    expect(line!.amount).toBeCloseTo(expected, 6);
+    expect(line!.amount).toBeGreaterThan(0);
+  });
+});
+
+describe("Throughput loss is charged once (P0.2)", () => {
+  it("leaves the labor benefit undiscounted when the loss is zero", () => {
+    const inputs: ModelInputs = {
+      ...DEFAULT_INPUTS,
+      // Keep coverage well under demand so the cap does not interfere.
+      residentsPerClass: 4,
+      efficiency: { ...DEFAULT_INPUTS.efficiency, caseThroughputLoss: 0 },
+    };
+    const cohort = residentsInProgramYear(inputs, 4);
+    const r = computeYear(inputs, 4, cohort);
+    const crnaLoaded = loaded(inputs.salaries.crnaSalary, inputs.salaries.benefitLoadRate);
+    const expected = RESIDENCY_YEARS.reduce((s, y) => {
+      const p = inputs.clinical[y];
+      return s + cohort[y] * p.fractionOnAnesthesia * p.anesthesiaCoverageFte * crnaLoaded;
+    }, 0);
+    expect(r.benefits.find((b) => b.key === "labor")!.amount).toBeCloseTo(expected, 6);
+    expect(r.costs.find((c) => c.key === "efficiency")!.amount).toBe(0);
+  });
+
+  it("charges the loss only through the margin line, weighted by juniority", () => {
+    const inputs: ModelInputs = { ...DEFAULT_INPUTS, residentsPerClass: 4 };
+    const cohort = residentsInProgramYear(inputs, 4);
+    const r = computeYear(inputs, 4, cohort);
+    const expected = RESIDENCY_YEARS.reduce((s, y) => {
+      const p = inputs.clinical[y];
+      return (
+        s +
+        cohort[y] *
+          coverageFteForYear(p) *
+          inputs.efficiency.annualMarginPerStaffedLocation *
+          inputs.efficiency.caseThroughputLoss *
+          juniorityWeight(y)
+      );
+    }, 0);
+    expect(r.costs.find((c) => c.key === "efficiency")!.amount).toBeCloseTo(expected, 6);
+  });
+});
+
+describe("Coverage cannot exceed staffed-location demand (P0.3)", () => {
+  const oversized: ModelInputs = { ...DEFAULT_INPUTS, residentsPerClass: 20 };
+  const doubled: ModelInputs = { ...DEFAULT_INPUTS, residentsPerClass: 40 };
+
+  it("caps the labor benefit at demand while stipends keep scaling", () => {
+    const a = computeYear(oversized, 4, residentsInProgramYear(oversized, 4));
+    const b = computeYear(doubled, 4, residentsInProgramYear(doubled, 4));
+
+    const laborA = a.benefits.find((x) => x.key === "labor")!.amount;
+    const laborB = b.benefits.find((x) => x.key === "labor")!.amount;
+    const stipendA = a.costs.find((x) => x.key === "residentsalary")!.amount;
+    const stipendB = b.costs.find((x) => x.key === "residentsalary")!.amount;
+
+    expect(laborB).toBeCloseTo(laborA, 6);
+    expect(stipendB).toBeCloseTo(2 * stipendA, 6);
+
+    // The capped labor value is exactly demand-worth of loaded CRNA coverage.
+    const crnaLoaded = loaded(
+      DEFAULT_INPUTS.salaries.crnaSalary,
+      DEFAULT_INPUTS.salaries.benefitLoadRate
+    );
+    expect(laborA).toBeCloseTo(staffedLocationDemand(oversized) * crnaLoaded, 6);
+  });
+
+  it("caps supervision cost and throughput loss on the same factor", () => {
+    const a = computeYear(oversized, 4, residentsInProgramYear(oversized, 4));
+    const b = computeYear(doubled, 4, residentsInProgramYear(doubled, 4));
+    for (const key of ["supervision", "efficiency"]) {
+      expect(b.costs.find((x) => x.key === key)!.amount).toBeCloseTo(
+        a.costs.find((x) => x.key === key)!.amount,
+        6
+      );
+    }
+  });
+
+  it("warns that the excess residents add cost but no coverage value", () => {
+    const r = runModel(oversized);
+    expect(r.warnings.some((w) => /exceeds the .* staffed anesthetizing locations/.test(w)))
+      .toBe(true);
+    // Warnings are de-duplicated across years at the result level.
+    expect(new Set(r.warnings).size).toBe(r.warnings.length);
+  });
+
+  it("stays silent when coverage fits inside demand", () => {
+    expect(runModel(DEFAULT_INPUTS).warnings).toEqual([]);
+  });
+});
+
+describe("Resident benefit load (P0.4)", () => {
+  it("adds absolute benefit dollars rather than a percentage of the stipend", () => {
+    expect(loadedResidentCost(DEFAULT_INPUTS.salaries)).toBe(68_000 + 28_000);
+    expect(residentSalaryCost(DEFAULT_INPUTS.salaries, 24)).toBe(24 * 96_000);
+  });
+
+  it("does not move when the attending/CRNA fringe load changes", () => {
+    const cheaper = { ...DEFAULT_INPUTS.salaries, benefitLoadRate: 0.1 };
+    expect(loadedResidentCost(cheaper)).toBe(loadedResidentCost(DEFAULT_INPUTS.salaries));
+  });
+});
+
+describe("Supervision-ratio warnings (P0.6)", () => {
+  it("flags resident concurrency beyond the teaching rule", () => {
+    const inputs: ModelInputs = {
+      ...DEFAULT_INPUTS,
+      supervision: { ...DEFAULT_INPUTS.supervision, maxResidentSupervisionRatio: 3 },
+    };
+    expect(runModel(inputs).warnings.some((w) => w.includes("42 CFR 415.178"))).toBe(true);
+  });
+
+  it("flags CRNA concurrency beyond the medical-direction limit", () => {
+    const inputs: ModelInputs = {
+      ...DEFAULT_INPUTS,
+      supervision: { ...DEFAULT_INPUTS.supervision, maxCrnaSupervisionRatio: 6 },
+    };
+    expect(runModel(inputs).warnings.some((w) => w.includes("42 CFR 415.110"))).toBe(true);
   });
 });
 

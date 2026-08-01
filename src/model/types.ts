@@ -37,10 +37,20 @@ export interface SalaryInputs {
   residentSalary: number;
   /**
    * Fringe-benefit load applied on top of base salary (health, retirement,
-   * payroll taxes, malpractice, etc.), as a fraction of base salary.
-   * Applied uniformly here; can be split per role later if needed.
+   * payroll taxes, malpractice, etc.), as a fraction of base salary. Applies to
+   * attendings and CRNAs; residents use the absolute figure below instead.
    */
   benefitLoadRate: number;
+  /**
+   * Resident benefits in absolute annual dollars, NOT as a percentage of the
+   * stipend. Health/dental premiums, retirement, payroll taxes, professional
+   * liability, licensure and meal/parking allowances do not scale with a
+   * trainee's (low) salary, so a percentage load materially understates them:
+   * all-in resident benefits typically run $25,000-$30,000 — roughly 40% of a
+   * $68,000 stipend, not 25%. Source: AAMC Survey of Resident/Fellow Stipends
+   * and Benefits.
+   */
+  residentBenefitAnnual: number;
 }
 
 /** Physical anesthetizing-location counts at the hospital. */
@@ -86,13 +96,19 @@ export interface GmeFundingInputs {
    */
   directGmePerResidentAmount: number;
   /**
-   * Medicare share of total inpatient days (Medicare utilization ratio),
-   * used to apportion Direct GME to the Medicare program.
+   * Medicare share of inpatient days (FFS + Medicare Advantage) — the Medicare
+   * utilization ratio used to apportion Direct GME to the Medicare program.
+   * Medicare Advantage days belong in this ratio (42 CFR 413.76 et seq.); the
+   * MA-related portion of DGME is paid through the associated add-on stream
+   * rather than the FFS DRG stream.
    */
   medicareInpatientShare: number;
   /**
-   * Total annual Medicare inpatient PPS operating payments to the hospital
-   * (the base to which the IME percentage add-on is applied).
+   * Medicare inpatient operating base payments subject to the IME add-on:
+   * FFS DRG payments EXCLUDING the IME and DSH add-ons themselves. Include the
+   * MA-related IME base as well if you are modeling Medicare Advantage IME.
+   * This is a different base from the utilization ratio above — one apportions
+   * DGME, this one is multiplied by the IME percentage.
    */
   medicareInpatientOperatingPayments: number;
   /** Available beds (denominator of the resident-to-bed ratio for IME). */
@@ -196,11 +212,13 @@ export interface EfficiencyInputs {
   annualMarginPerStaffedLocation: number;
   /**
    * Reduction in case throughput when a case is staffed by a resident vs. an
-   * experienced anesthetist, as a fraction. Applied to the resident's covered
-   * locations and weighted toward junior residents. Represents teaching slow-
-   * down (longer turnovers, teaching in the room).
+   * experienced anesthetist, as a fraction. Represents teaching slowdown
+   * (longer turnovers, teaching in the room) and is charged EXACTLY ONCE, as
+   * lost margin on the resident-covered locations, weighted toward junior
+   * residents by juniorityWeight(). It is deliberately NOT also netted out of
+   * the coverage FTE — that would charge one parameter through two channels.
    */
-  teachingThroughputLoss: number;
+  caseThroughputLoss: number;
 }
 
 /** The full set of model inputs. */
@@ -242,6 +260,12 @@ export interface YearResult {
   totalBenefits: number;
   totalCosts: number;
   netValue: number;
+  /**
+   * Modeling caveats raised by this year's inputs (coverage capped at demand,
+   * supervision ratios beyond Medicare limits, cap headroom exceeded, …).
+   * Advisory only — nothing here blocks a calculation.
+   */
+  warnings: string[];
 }
 
 /** Full model output. */
@@ -255,4 +279,6 @@ export interface ModelResult {
   /** Steady-state benefits and costs, itemized. */
   steadyStateBenefits: LineItem[];
   steadyStateCosts: LineItem[];
+  /** De-duplicated union of every year's warnings, in first-seen order. */
+  warnings: string[];
 }

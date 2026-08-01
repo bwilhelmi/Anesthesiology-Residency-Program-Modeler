@@ -33,9 +33,20 @@ export function facultyTeachingCost(inputs: ModelInputs, totalResidents: number)
   );
 }
 
+/**
+ * Fully-loaded annual cost of one resident: stipend plus benefits in absolute
+ * dollars. Residents deliberately do NOT use the percentage benefit load —
+ * health premiums and payroll-adjacent costs are largely flat per head, so a
+ * percentage of a trainee stipend understates them badly (see
+ * SalaryInputs.residentBenefitAnnual).
+ */
+export function loadedResidentCost(salaries: SalaryInputs): number {
+  return salaries.residentSalary + salaries.residentBenefitAnnual;
+}
+
 /** Total resident stipend + benefits cost for a headcount of residents. */
 export function residentSalaryCost(salaries: SalaryInputs, totalResidents: number): number {
-  return loaded(salaries.residentSalary, salaries.benefitLoadRate) * totalResidents;
+  return loadedResidentCost(salaries) * totalResidents;
 }
 
 /**
