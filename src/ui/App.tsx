@@ -219,7 +219,10 @@ export function App() {
               One FTE of CRNA coverage costs{" "}
               <strong>{currency(crnaCostOfCoverage(inputs.salaries))}</strong> all in —
               base, premium pay, and fringe. That is the figure resident coverage is
-              credited against.
+              credited against. The BLS baseline behind the region picker excludes
+              overtime and weekend/holiday premium by definition, which is why the
+              premium load above adds rather than double-counts — but if you typed in a
+              figure that already includes overtime, set that load to 0.
             </div>
             <NumberField
               label="Resident stipend"

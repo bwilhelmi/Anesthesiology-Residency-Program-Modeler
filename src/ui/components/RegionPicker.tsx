@@ -49,18 +49,18 @@ export function RegionPicker({
 
       <SliderField
         label="Anesthesiologist market premium"
-        help="Default +25% reflects that the BLS employed-wage mean sits below market: Merritt Hawkins / AMN put nonacademic starting base near $450K (~+25%), Doximity puts total compensation at $523K (~+45%, including bonus/production loaded separately)."
+        help="Default +25% reflects that the BLS employed-wage mean sits below market: Merritt Hawkins / AMN put nonacademic starting base near $450K (~+25%), Doximity puts total compensation at $523K (~+45%, including bonus/production loaded separately). The range runs to +100% for partner-track and hard-to-recruit markets."
         value={anesthPremium}
         onChange={setAnesthPremium}
-        max={0.6}
+        max={1}
         format={(v) => `+${percent(v)}`}
       />
       <SliderField
         label="CRNA market premium"
-        help="Default +3%. The BLS CRNA mean is already essentially at market: the AANA 2024 survey puts median CRNA salary at $251K and average total compensation near $256K, only a few percent above BLS. Raise this if staffing with locums."
+        help="Default +3%: the BLS mean is close to the AANA 2024 national median of $251K. But national means hide the top of the market — CRNA base pay reaches $450K (~+80%) in high-demand and locum-heavy settings, so the range runs to +100%."
         value={crnaPremium}
         onChange={setCrnaPremium}
-        max={0.4}
+        max={1}
         format={(v) => `+${percent(v)}`}
       />
       <p className="region-source">
