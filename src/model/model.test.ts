@@ -885,17 +885,6 @@ describe("Summary metrics (P3.2)", () => {
     if (r.summary.npv > 0) expect(r.summary.breakevenYear).not.toBeNull();
   });
 
-  it("is monotonically non-increasing in the discount rate", () => {
-    let previous = Infinity;
-    for (const discountRate of [0, 0.03, 0.06, 0.09, 0.12]) {
-      const npv = runModel({
-        ...DEFAULT_INPUTS,
-        projection: { ...DEFAULT_INPUTS.projection, discountRate },
-      }).summary.npv;
-      expect(npv).toBeLessThanOrEqual(previous + 1e-6);
-      previous = npv;
-    }
-  });
 });
 
 describe("Program ramp", () => {

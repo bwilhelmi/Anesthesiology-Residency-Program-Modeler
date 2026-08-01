@@ -23,43 +23,101 @@ Establishing a residency changes a hospital's economics in several directions at
 once. This tool makes each of them an explicit, adjustable input so you can see
 the trade-offs rather than a single black-box number.
 
+Money is entered in **year-1 dollars**. Escalation, discounting, and the
+pre-revenue build-up happen inside the projection, not in your head.
+
 ### Benefits
 
 | Benefit | How it's modeled |
 | --- | --- |
-| **Medicare Direct GME (DGME)** | `PRA × fundable resident FTE × Medicare inpatient share`. Reimburses direct training costs. |
-| **Medicare Indirect Medical Education (IME)** | An add-on percentage on Medicare inpatient PPS payments: `IME% = 1.35 × [(1 + r)^0.405 − 1]`, where `r` is the resident-to-bed ratio. Because IME is nonlinear, the tool credits the *marginal* IME from adding the new residents on top of any existing ones. |
-| **Medicaid GME** | Flat per-resident state support (0 in states without a program). Not subject to the Medicare cap. |
-| **Clinical labor substitution** | Residents help staff anesthetizing locations under supervision, offsetting more expensive CRNA/locum coverage. Valued at the fully-loaded CRNA cost of the anesthetist-equivalent coverage each resident level provides. |
-| **Off-service / intern service value** | During required non-anesthesia rotations (mainly the intern year), residents deliver service value to host departments (ICU, medicine, surgery, pain), valued against a mid-level provider. |
+| **Medicare Direct GME (DGME)** | `PRA × payment FTE × Medicare share of inpatient days`. The payment FTE is what survives the cap and the three-year rolling average, not headcount. |
+| **Medicare Indirect Medical Education (IME)** | `IME% = 1.35 × [(1 + r)^0.405 − 1]` on Medicare inpatient operating payments, credited *marginally* because IME is nonlinear in the resident-to-bed ratio `r`, and clipped by the ratio cap. |
+| **Medicare capital IME** *(optional, off by default)* | `e^(0.2822 × r) − 1` on Medicare capital PPS payments. |
+| **Medicaid GME** | Per resident FTE, or a fixed annual appropriation that does **not** scale with program size — states differ in kind, not just amount. |
+| **Clinical labor substitution** | Residents help staff anesthetizing locations, offsetting CRNA/locum coverage. Valued at the fully-loaded CRNA cost of the coverage each level provides *at the sponsor hospital*, and capped at the locations the hospital actually runs. |
+| **Off-service / intern service value** | Value delivered to host departments during required non-anesthesia rotations — credited only for months spent at the sponsor hospital. |
+| **Retention pipeline** | Graduates hired by the hospital or its group, valued at the recruiting, signing, and locum-bridge cost their hire **avoids**. This is an avoided cost, never revenue. |
+| **Overnight call coverage** *(optional, off by default)* | In-house nights that would otherwise be CRNA call stipends, overtime, or locum coverage. Leave it off if your coverage FTEs already include call. |
 
 ### Costs
 
 | Cost | How it's modeled |
 | --- | --- |
-| **Resident stipends + benefits** | Headcount × fully-loaded stipend. |
-| **Program leadership & administration** | Program Director and Associate PD protected (non-clinical) time valued at the anesthesiologist rate, program coordinator salary, and non-billable faculty teaching effort. |
-| **Fixed program overhead** | ACGME/accreditation fees, recruitment, simulation, resident education funds. |
-| **Teaching efficiency loss** | Lost clinical margin from slower teaching cases, weighted toward junior residents. |
-| **One-time startup cost** | Application, consultants, and initial build-out — amortized into the multi-year view. |
+| **Resident stipends + benefits** | Headcount × (stipend + benefits **in absolute dollars**). Health premiums and payroll-adjacent costs do not scale with a trainee's salary, so a percentage load understates them badly. |
+| **Incremental attending supervision** | The teaching staffing model ties an attending to **1:2** resident rooms (42 CFR 415.178) where medical direction covers **1:4** CRNA rooms (42 CFR 415.110). That extra attending time is a real cost of teaching, and it is the single largest line most pro formas omit. |
+| **Program leadership & administration** | Program Director and Associate PD protected time at the anesthesiologist rate, coordinator salary, and non-billable faculty teaching effort. |
+| **Per-resident program costs** | Professional liability, the DIO/GMEC/GME-office allocation the ACGME Institutional Requirements oblige, and the fee stack (ERAS/NRMP, ITE, ABA, licenses, certifications). |
+| **Fixed program overhead** | Accreditation fees, recruitment, simulation, resident education funds. |
+| **Teaching efficiency loss** | Lost clinical margin from slower teaching cases, weighted toward junior residents — charged **once**, on the covered locations. |
+| **Startup & accreditation** | Spread across the pre-revenue years, where it is actually spent. |
+| **Participating-site support** | Net affiliation-agreement payments, in either direction. |
 
 ---
 
-## The Medicare resident cap
+## Medicare mechanics
 
-The single most important switch in the model is whether the hospital is **at
-its Medicare resident FTE cap**. Caps were largely fixed from a mid-1990s base
-year. Consequences:
+None of the Medicare money is a single-year calculation, and the rules that make
+it time-dependent are the difference between a plausible pro forma and a fantasy.
 
-- **Under cap:** new anesthesia residents (up to the remaining headroom) generate
-  new DGME and IME revenue — often the difference between a program that pays for
-  itself and one that doesn't.
-- **At cap:** residents above the headroom generate **no additional** Medicare
-  DGME or IME. Their financial case rests entirely on clinical labor value,
-  Medicaid support, and mission value.
+### The three hospital scenarios
 
-The tool honors this by only counting *fundable* FTE (those within the headroom)
-toward Medicare revenue, while clinical value accrues for every resident.
+The largest single lever in the model, and one that cannot be expressed as a
+boolean:
+
+- **New teaching hospital** — no cap and no Per-Resident Amount yet. It *builds*
+  both out of this program.
+- **Existing teaching hospital, under cap** — funds residents up to the remaining
+  headroom, plus any awarded slots.
+- **At cap** — only awarded slots create funded FTE. Everything else trains at
+  full cost, and the case rests on clinical labor, Medicaid, retention, and
+  mission.
+
+### Cap building — 42 CFR 413.79(e)(1)
+
+A new teaching hospital has **no cap during program years 1–5**. The permanent
+cap is then fixed from the year-5 complement: the highest number of countable
+FTE in any single program year × the program's accredited length (4 years for
+anesthesiology). With attrition and multi-site training this is meaningfully
+below `residents per class × 4`, and the model computes it from the actual
+surviving, sponsor-site FTE.
+
+### The three-year rolling average — 42 CFR 413.79(d)
+
+Payment FTE is the average of the current and two prior years — **except** that
+residents in a new program are excluded during the growth window
+(413.79(d)(5)). Without that exception a ramping program would be paid on an
+average it never catches up to. From year 6 the average binds, so a program
+still changing size is paid on a figure trailing up to two years behind.
+
+### The IME resident-to-bed ratio cap — 42 CFR 412.105
+
+This year's ratio may not exceed last year's (412.105(a)(1)), with the same
+new-program exception (412.105(f)(1)(v)) — which is what lets a ramping program's
+ratio climb year over year before it holds. Only patient-care time is countable
+(412.105(f)), so research time is excluded from IME but not from DGME.
+
+### Capital IME — 42 CFR 412.322
+
+A smaller, exponential add-on on capital PPS payments. Off unless you supply the
+hospital's capital payments, so no existing estimate changes silently.
+
+### The PRA for a new teaching hospital — 42 CFR 413.77(e)
+
+`PRA = min(your projected allowable cost per FTE, the locality weighted mean PRA)`.
+
+Two things about this number deserve a board's attention. It is a **one-shot,
+permanent** determination made from the program's early cost-report years and
+merely trended forward afterwards, which makes it the highest-leverage figure in
+the entire model. And a hospital stuck with a very low or zero historical PRA, or
+a de-minimis cap, may qualify to have it **reset under CAA 2021 §131** — worth
+checking before accepting an inherited number as fixed.
+
+### Slot awards
+
+`CAA 2021 §126` (1,000 slots phased FY2023–FY2027) and `CAA 2023 §4122` (200
+slots, FY2026, at least 100 psychiatry-directed) are distributed through a CMS
+application process. They add headroom under cap and are the only funded FTE at
+cap.
 
 ---
 
@@ -69,27 +127,92 @@ Per the ACGME anesthesiology program requirements, the training years differ
 sharply in where the resident's value lands:
 
 - **PGY-1 (Clinical Base / intern year):** mostly required off-service rotations
-  (critical care, medicine, surgery, emergency medicine, etc.) with limited
-  anesthesia exposure. Modeled as low anesthesia coverage but meaningful
-  service value to host departments.
-- **PGY-2 → PGY-4 (CA-1 → CA-3):** the resident spends nearly the whole year
-  delivering anesthesia under supervision, with coverage capability that ramps
-  from a fraction of a CRNA (junior, closely supervised, slower cases) toward
-  near-independent senior coverage.
+  (critical care, medicine, surgery, emergency medicine), often at participating
+  sites. Modeled as low anesthesia coverage but meaningful service value to
+  whichever department hosts them.
+- **PGY-2 → PGY-4 (CA-1 → CA-3):** nearly the whole year delivering anesthesia
+  under supervision, with coverage capability ramping from a fraction of a CRNA
+  toward near-independent senior coverage.
 
-Each level's parameters — fraction of the year on anesthesia, CRNA-equivalent
-coverage, off-service coverage — are editable in the **Resident clinical value by
-year** section.
+Where a resident *is* matters as much as what they do. Coverage composes as:
+
+```
+coverage = sponsorSiteShare × fractionOnAnesthesia × anesthesiaCoverageFte
+```
+
+Medicare FTE counts at the hospital where the training occurs, and clinical value
+accrues where the resident is standing — so months at a county hospital or VA
+generate neither sponsor FTE nor sponsor coverage. Every one of these parameters
+is editable per PGY level.
 
 ---
 
 ## Supervision & billing ratios
 
-Resident coverage is economically attractive because of Medicare's teaching
-rules: a teaching anesthesiologist can supervise up to **2 concurrent resident
-cases** and bill 100% of the base units, versus medically directing up to **4
-concurrent CRNA cases**. These ratios are exposed as inputs so you can reflect
-your own staffing model and local interpretation.
+Resident coverage cuts both ways. A teaching anesthesiologist may be involved in
+**2 concurrent resident cases** at full payment (42 CFR 415.178), against **4
+concurrent medically directed CRNA cases** (42 CFR 415.110). Residents therefore
+substitute for CRNA labor *and* consume more attending time per room than the
+CRNAs they replace. The model charges both sides; earlier versions collected only
+the benefit.
+
+---
+
+## Reading the output
+
+- **NPV** over the whole frame, discounted from the first pre-launch year, so the
+  build-out is counted at full weight rather than discounted away.
+- **Breakeven year** — the first program year in which cumulative discounted net
+  turns non-negative, or none.
+- **Steady-state annual net** — the mature year (program year 6), once the cap,
+  the rolling average, and the ratio cap all bind.
+- **The tornado chart** — each assumption moved on its own. A single NPV invites
+  false precision; the tornado shows that two or three assumptions decide the
+  answer and the rest is noise. Argue about those.
+- **Scenario presets** — conservative, base, and favorable, applied as patches so
+  anything you have localized survives.
+- **Warnings** — coverage exceeding the rooms you run, supervision ratios beyond
+  Medicare limits, cap headroom shortfalls, and appropriation-mode Medicaid
+  without a committed non-federal share.
+
+---
+
+## What this model deliberately excludes
+
+Each of these is real. None is quantifiable in a way a CFO should accept from a
+planning tool, so the model leaves them out rather than inventing a number:
+
+- **Research and scholarly output** — value depends entirely on what the faculty
+  actually produce, and grant capture is not a function of resident count.
+- **Quality and outcome effects** — the literature is mixed on direction, let
+  alone magnitude, and any figure here would be a guess wearing a citation.
+- **Downstream referral capture** — hospital- and market-specific; modeling it
+  generically would flatter every program equally, which is the same as modeling
+  nothing.
+- **Brand, reputation, and mission value** — real enough to motivate the whole
+  project, and not something to put a dollar sign on.
+- **Payer-mix shifts** — teaching status can change a hospital's case mix over a
+  decade, in a direction that depends on the local market rather than on the
+  program.
+
+If these matter to your case, argue them on their merits alongside the model —
+not by inflating a number inside it.
+
+## Known simplifications
+
+- **Annual FTE counting**, not per-pay-period. Real cost reports count FTE by
+  time period; the model works in whole training years.
+- **Professional-fee neutrality** between 1:2 teaching and 1:4 medical direction.
+  The model prices the supervision *cost* difference and assumes per-room
+  professional revenue is approximately the same in both modes.
+- **Single sponsor-hospital P&L.** Value delivered at participating sites, and
+  the finances of the anesthesia group as distinct from the hospital, are out of
+  frame.
+- **State Medicaid GME is not escalated.** Appropriations and per-resident rates
+  routinely sit flat for years; growing them would flatter the case.
+- **No state income or B&O tax effects.**
+- **Expected values, not distributions.** Cohorts stay fractional after
+  attrition; the tornado is the substitute for a Monte Carlo.
 
 ---
 
@@ -125,11 +248,15 @@ src/
   model/            # Pure, tested financial model (no UI dependencies)
     types.ts        # All input/output types
     constants.ts    # CMS constants + national ballpark defaults
-    gme.ts          # Medicare DGME, IME, Medicaid, cap logic
-    clinical.ts     # Resident labor substitution & coverage FTE
-    program.ts      # Program leadership / overhead costs
-    model.ts        # Top-level orchestration (ramp years + steady state)
-    model.test.ts   # Vitest unit tests
+    gme.ts          # Medicare DGME/IME, cap building, rolling average, Medicaid
+    clinical.ts     # Coverage FTE, labor substitution, supervision cost
+    program.ts      # Program leadership, overhead, per-resident costs
+    workforce.ts    # Retention pipeline and call coverage (avoided costs)
+    sensitivity.ts  # Tornado analysis over a fixed variable list
+    model.ts        # Projection frame: escalation, pre-revenue years, NPV
+    model.test.ts       # Vitest unit tests
+    sensitivity.test.ts
+    regression.test.ts  # Frozen defaults + property tests
   ui/               # React interface (inputs → live results)
     App.tsx
     components/
@@ -149,9 +276,13 @@ into a spreadsheet exporter, an API, or a test harness without React.
   status, Medicaid program) before any number is relied upon.
 - GME reimbursement rules are intricate and change; consult your GME office and
   a reimbursement specialist for authoritative figures.
-- The model omits harder-to-quantify strategic value (recruitment pipeline,
-  quality, reputation, faculty retention) — these typically strengthen the case
-  beyond what the dollars alone show.
+- The model deliberately omits several real but unquantifiable effects — see
+  *What this model deliberately excludes* above. They generally strengthen the
+  case beyond what the dollars alone show.
+- **A negative NPV at the defaults is not a verdict on your hospital.** The
+  shipped defaults describe a generic community hospital becoming a teaching
+  hospital for the first time; the PRA determination, the cap, and the local
+  CRNA market move the answer by millions. Localize before concluding anything.
 
 ---
 

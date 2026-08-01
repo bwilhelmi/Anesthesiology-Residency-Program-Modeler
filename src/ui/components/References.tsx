@@ -98,6 +98,72 @@ export const REFERENCES: Reference[] = [
     note: "CRNA-specific benchmark used to calibrate the default CRNA market premium: median salary $251,000, average total compensation ~$256,000 — only a few percent above the BLS CRNA mean.",
     url: "https://www.aana.com/professional-development/compensation-and-benefits-survey/",
   },
+  {
+    n: 14,
+    label:
+      "42 CFR 413.79 — Direct GME resident FTE caps, the three-year rolling average, and new-program cap building",
+    note: "The cap a new teaching hospital builds from its year-5 complement (413.79(e)(1)), and the rolling-average exclusion for residents in a new program during its growth window (413.79(d)(5)).",
+    url: "https://www.ecfr.gov/current/title-42/chapter-IV/subchapter-B/part-413/subpart-F/section-413.79",
+  },
+  {
+    n: 15,
+    label:
+      "42 CFR 413.77 — Per-resident amounts, including the determination for new teaching hospitals",
+    note: "A new teaching hospital's PRA is the lesser of its own projected allowable cost per FTE and the locality-adjusted weighted mean PRA (413.77(e)) — a one-shot, permanent determination.",
+    url: "https://www.ecfr.gov/current/title-42/chapter-IV/subchapter-B/part-413/subpart-F/section-413.77",
+  },
+  {
+    n: 16,
+    label: "42 CFR 412.105 — IME adjustment (operating) and the resident-to-bed ratio",
+    note: "The IME formula, the ratio cap at the prior year's level (412.105(a)(1)), the new-program FTE treatment (412.105(f)(1)(v)), and the patient-care activity requirement for countable time.",
+    url: "https://www.ecfr.gov/current/title-42/chapter-IV/subchapter-B/part-412/subpart-G/section-412.105",
+  },
+  {
+    n: 17,
+    label: "42 CFR 412.322 — IME adjustment (capital)",
+    note: "The capital IME add-on, e^(0.2822 × resident-to-bed ratio) − 1, applied to Medicare capital PPS payments.",
+    url: "https://www.ecfr.gov/current/title-42/chapter-IV/subchapter-B/part-412/subpart-M/section-412.322",
+  },
+  {
+    n: 18,
+    label: "42 CFR 415.110 — Medically directed anesthesia services (up to four concurrent procedures)",
+    note: "The 1:4 medical-direction limit that sets the comparison for resident supervision cost.",
+    url: "https://www.ecfr.gov/current/title-42/chapter-IV/subchapter-B/part-415/subpart-C/section-415.110",
+  },
+  {
+    n: 19,
+    label:
+      "42 CFR 415.178 — Anesthesia services furnished in teaching settings (two concurrent resident cases)",
+    note: "The teaching-rule concurrency limit: an attending covering resident rooms is tied to two, not four, which is the incremental supervision cost the model charges.",
+    url: "https://www.ecfr.gov/current/title-42/chapter-IV/subchapter-B/part-415/subpart-D/section-415.178",
+  },
+  {
+    n: 20,
+    label:
+      "CMS — Direct Graduate Medical Education (DGME) and new residency slot distributions (CAA 2021 §126 and §131; CAA 2023 §4122)",
+    note: "The slot-award process behind the awarded-slots input, and the §131 PRA/cap reset available to hospitals with very low or de-minimis historical amounts.",
+    url: "https://www.cms.gov/medicare/payment/prospective-payment-systems/acute-inpatient-pps/direct-graduate-medical-education-dgme",
+  },
+  {
+    n: 21,
+    label: "ACGME — Accreditation (Institutional Requirements: DIO, GMEC, and GME office obligations)",
+    // The specific institutional-review page 404s; per house rule the label
+    // stays and the parent index is cited rather than dropping the source.
+    note: "The institutional infrastructure a sponsoring institution must maintain, which the per-resident GME overhead line prices.",
+    url: "https://www.acgme.org/what-we-do/accreditation/",
+  },
+  {
+    n: 22,
+    label: "ACGME — Program Requirements for Graduate Medical Education in Anesthesiology",
+    note: "PGY structure, the four-year accredited length used for the cap and IRP weighting, and Program Director protected-time requirements.",
+    url: "https://www.acgme.org/specialties/anesthesiology/program-requirements-and-faqs-and-applications/",
+  },
+  {
+    n: 23,
+    label: "AAMC — Survey of Resident/Fellow Stipends and Benefits",
+    note: "Stipend and benefit defaults, including the absolute resident benefit figure the model uses in place of a percentage load.",
+    url: "https://www.aamc.org/data-reports/students-residents/report/aamc-survey-resident/fellow-stipends-and-benefits",
+  },
 ];
 
 /** Superscript footnote marker(s) linking to the bibliography, e.g. <Cite ns={[1,2]} />. */

@@ -214,6 +214,7 @@ export function App() {
             />
             <NumberField
               label="Resident benefits / yr"
+              cite={[23]}
               help="Absolute dollars, not a percentage: health premiums, retirement, payroll taxes, liability, licensure. These do not scale with a trainee stipend, so a percentage load understates them (typical all-in: $25k–$30k)."
               value={inputs.salaries.residentBenefitAnnual}
               onChange={(v) => patchSalaries({ residentBenefitAnnual: Math.max(0, v) })}
@@ -291,6 +292,7 @@ export function App() {
             />
             <ChoiceField
               label="Hospital GME scenario"
+              cite={[14, 20]}
               help="The largest single lever in this model. A hospital that has never trained residents builds its own cap out of this program; an established one inherits a cap fixed decades ago."
               value={inputs.gme.scenario}
               onChange={(v) => patchGme({ scenario: v })}
@@ -316,6 +318,7 @@ export function App() {
               <>
                 <NumberField
                   label="Projected allowable GME cost per FTE (year 1)"
+                  cite={[15]}
                   help="Your own projected cost per resident FTE in the base period. The PRA is set as the LESSER of this and the locality mean below (42 CFR 413.77(e)) — a one-shot, permanent determination made from your early cost reports, and the highest-leverage number in this model."
                   value={inputs.gme.newHospitalProjectedCostPerFte}
                   onChange={(v) => patchGme({ newHospitalProjectedCostPerFte: Math.max(0, v) })}
@@ -324,6 +327,7 @@ export function App() {
                 />
                 <NumberField
                   label="Locality weighted mean PRA"
+                  cite={[15]}
                   help="Weighted mean PRA of teaching hospitals in your locality — the ceiling on your new PRA."
                   value={inputs.gme.localityWeightedMeanPra}
                   onChange={(v) => patchGme({ localityWeightedMeanPra: Math.max(0, v) })}
@@ -350,6 +354,7 @@ export function App() {
             {inputs.gme.scenario === "existingUnderCap" && (
               <NumberField
                 label="Cap headroom (fundable resident FTE)"
+                cite={[1, 14]}
                 help="Unused FTE slots under the cap. New residents beyond this earn no Medicare GME."
                 value={inputs.gme.capHeadroomFte}
                 onChange={(v) => patchGme({ capHeadroomFte: Math.max(0, v) })}
@@ -358,6 +363,7 @@ export function App() {
             {inputs.gme.scenario !== "newTeachingHospital" && (
               <NumberField
                 label="Awarded new cap slots"
+                cite={[20]}
                 help="Slots awarded under CAA 2021 §126 (1,000 slots phased FY2023–FY2027) or CAA 2023 §4122 (200 slots, FY2026, at least 100 psychiatry-directed) via the CMS application process."
                 value={inputs.gme.awardedNewSlots}
                 onChange={(v) => patchGme({ awardedNewSlots: Math.max(0, v) })}
@@ -365,6 +371,7 @@ export function App() {
             )}
             <PercentField
               label="Medicare share of inpatient days (FFS + Medicare Advantage)"
+              cite={[6]}
               clamp={{ min: 0, max: 1 }}
               help="The Medicare utilization ratio that apportions Direct GME. Medicare Advantage days belong in it (42 CFR 413.76 et seq.); the MA-related DGME is paid through the associated add-on stream."
               value={inputs.gme.medicareInpatientShare}
@@ -372,6 +379,7 @@ export function App() {
             />
             <NumberField
               label="Medicare inpatient operating base payments subject to the IME add-on / yr"
+              cite={[16]}
               help="FFS DRG payments excluding the IME and DSH add-ons themselves. Include the MA-related IME base if you are modeling Medicare Advantage IME."
               value={inputs.gme.medicareInpatientOperatingPayments}
               onChange={(v) => patchGme({ medicareInpatientOperatingPayments: v })}
@@ -394,6 +402,7 @@ export function App() {
             </div>
             <NumberField
               label="Medicare inpatient capital PPS payments / yr"
+              cite={[17]}
               help="Base for the capital IME add-on, e^(0.2822 × resident-to-bed ratio) − 1 (42 CFR 412.322). Leave at 0 to omit the line."
               value={inputs.gme.medicareCapitalPayments}
               onChange={(v) => patchGme({ medicareCapitalPayments: Math.max(0, v) })}
@@ -402,12 +411,14 @@ export function App() {
             />
             <ToggleField
               label="Apply the three-year rolling average"
+              cite={[14]}
               help="42 CFR 413.79(d): payment FTE is the average of this year and the prior two, except for a new program during its growth window (years 1–5). Realistic; leave on."
               value={inputs.gme.applyRollingAverage}
               onChange={(v) => patchGme({ applyRollingAverage: v })}
             />
             <ToggleField
               label="Apply the IME resident-to-bed ratio cap"
+              cite={[16]}
               help="42 CFR 412.105(a)(1): this year's ratio may not exceed last year's, again excepting a new program's growth window. Realistic; leave on."
               value={inputs.gme.applyImeRatioCap}
               onChange={(v) => patchGme({ applyImeRatioCap: v })}
@@ -472,6 +483,7 @@ export function App() {
           >
             <NumberField
               label="Max CRNA cases per anesthesiologist"
+              cite={[18]}
               clamp={{ min: 1 }}
               help="Medicare medical-direction limit is 4 concurrent cases."
               value={inputs.supervision.maxCrnaSupervisionRatio}
@@ -480,6 +492,7 @@ export function App() {
             />
             <NumberField
               label="Max resident cases per teaching anesthesiologist"
+              cite={[19]}
               clamp={{ min: 1 }}
               help="Medicare allows up to 2 concurrent resident cases at 100% billing."
               value={inputs.supervision.maxResidentSupervisionRatio}
@@ -495,6 +508,7 @@ export function App() {
           >
             <SliderField
               label="Program Director protected time"
+              cite={[22]}
               value={inputs.program.programDirectorFte}
               onChange={(v) => patchProg({ programDirectorFte: v })}
               format={(v) => `${Math.round(v * 100)}% FTE`}
@@ -531,6 +545,7 @@ export function App() {
               />
               <NumberField
                 label="GME office overhead / resident / yr"
+                cite={[21]}
                 help="DIO, GMEC, and GME-office allocation required by the ACGME Institutional Requirements."
                 value={inputs.program.gmeInstitutionalOverheadPerResident}
                 onChange={(v) =>
