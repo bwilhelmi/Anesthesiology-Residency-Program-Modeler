@@ -104,6 +104,22 @@ export const MEDICAL_DIRECTION_CONCURRENCY_LIMIT = 4;
  */
 export const TEACHING_ANESTHESIA_CONCURRENCY_LIMIT = 2;
 
+/**
+ * Default medically directed CRNA rooms per anesthesiologist — an OPERATING
+ * AVERAGE, deliberately below the regulatory ceiling of 4.
+ *
+ * The tertiary centers that sponsor anesthesiology residencies rarely sustain
+ * 1:4: complex cases, anesthetizing locations scattered across a campus, and the
+ * requirement that the directing anesthesiologist be present for induction and
+ * emergence and immediately available throughout all cap effective concurrency
+ * below the statutory maximum.
+ *
+ * This is the counterfactual every resident room is measured against, so it is
+ * the single most consequential default in the model — localize it to what your
+ * department actually runs, not to what Medicare permits.
+ */
+export const DEFAULT_MEDICAL_DIRECTION_RATIO = 3;
+
 /* ----------------------------- Default salaries --------------------------- */
 
 export const DEFAULT_SALARIES = {
@@ -239,7 +255,7 @@ export const DEFAULT_INPUTS: ModelInputs = {
     },
   },
   supervision: {
-    maxCrnaSupervisionRatio: MEDICAL_DIRECTION_CONCURRENCY_LIMIT,
+    maxCrnaSupervisionRatio: DEFAULT_MEDICAL_DIRECTION_RATIO,
     maxResidentSupervisionRatio: TEACHING_ANESTHESIA_CONCURRENCY_LIMIT,
   },
   program: {

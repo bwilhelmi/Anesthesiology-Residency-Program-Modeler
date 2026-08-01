@@ -61,15 +61,32 @@ const amount = (items: { key: string; amount: number }[], key: string): number =
  *
  * That one assumption is worth more than the entire Medicaid line at defaults,
  * which is why it is a visible, sourced input rather than a fattened salary.
+ *
+ * UPDATED AGAIN: the default medical-direction ratio moved from 1:4 to 1:3.
+ * 1:4 is the regulatory ceiling (42 CFR 415.110), not an operating average —
+ * the tertiary centers that sponsor anesthesiology residencies rarely sustain
+ * it, because complex cases, campus-wide anesthetizing locations, and the
+ * presence-for-induction-and-emergence requirement all cap effective
+ * concurrency below the maximum. Since the CRNA room is the counterfactual a
+ * resident room is charged against, crediting it with LESS attending time than
+ * it really consumes overstated the incremental supervision cost:
+ *
+ *   supervision line  $1,438,999  ->    $959,333
+ *   NPV                 +$849,528  ->  +$3,329,532
+ *   breakeven             year 9   ->      year 7
+ *
+ * The ceiling still exists as MEDICAL_DIRECTION_CONCURRENCY_LIMIT, which is
+ * what the "beyond medical direction" warning is measured against. Only the
+ * default operating assumption moved.
  * ------------------------------------------------------------------------ */
 describe("Frozen default program (P7.3)", () => {
   const r = runModel(DEFAULT_INPUTS);
 
   it("reports the frozen summary", () => {
-    expect(r.summary.nominalCumulativeNet).toBeCloseTo(3_088_270.63, 1);
-    expect(r.summary.npv).toBeCloseTo(849_527.94, 1);
-    expect(r.summary.breakevenYear).toBe(9);
-    expect(r.summary.steadyStateAnnualNet).toBeCloseTo(1_052_724.21, 1);
+    expect(r.summary.nominalCumulativeNet).toBeCloseTo(6_931_762.99, 1);
+    expect(r.summary.npv).toBeCloseTo(3_329_531.97, 1);
+    expect(r.summary.breakevenYear).toBe(7);
+    expect(r.summary.steadyStateAnnualNet).toBeCloseTo(1_532_390.49, 1);
   });
 
   it("reports the frozen mature year", () => {
@@ -86,7 +103,7 @@ describe("Frozen default program (P7.3)", () => {
     expect(amount(r.steadyState.costs, "support")).toBeCloseTo(1_368_860, 0);
     expect(amount(r.steadyState.costs, "perresident")).toBeCloseTo(715_473, 0);
     expect(amount(r.steadyState.costs, "efficiency")).toBeCloseTo(182_303, 0);
-    expect(amount(r.steadyState.costs, "supervision")).toBeCloseTo(1_438_999, 0);
+    expect(amount(r.steadyState.costs, "supervision")).toBeCloseTo(959_333, 0);
   });
 
   it("keeps line items summing to the reported totals in every year", () => {

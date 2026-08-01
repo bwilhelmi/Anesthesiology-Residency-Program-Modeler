@@ -184,11 +184,15 @@ regulatory ceiling rather than an operating average — complexity and room
 geography routinely force 1:3 or lower. Set it to what your department actually
 runs. It is the largest single assumption in the model:
 
-| Direction ratio | Incremental cost per resident-covered room | NPV at defaults |
+| Direction ratio | Incremental cost per resident-covered room | NPV |
 | --- | --- | --- |
 | 1:2 | $0 | +$8.29M |
-| 1:3 | $83,333 | +$3.33M |
-| 1:4 | $125,000 | +$0.85M |
+| **1:3 (default)** | **$83,333** | **+$3.33M** |
+| 1:4 (regulatory ceiling) | $125,000 | +$0.85M |
+
+The default is **1:3, not the 1:4 ceiling**, because crediting the CRNA
+counterfactual with less attending time than it really consumes overstates what
+a resident room costs on top of it.
 
 At 1:2 the cost vanishes entirely — the resident room ties up no more attending
 time than the CRNA room it replaced.
