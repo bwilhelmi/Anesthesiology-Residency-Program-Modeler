@@ -7,10 +7,12 @@
  *
  *   - Retention pipeline: graduates hired by the hospital or its group, valued
  *     at the recruitment, signing, and locum-bridge cost their hire avoids.
- *   - Call coverage: overnight in-house presence that would otherwise be bought
- *     as CRNA call stipends, overtime, or locum nights. OFF by default because
- *     it overlaps the labor-substitution line whenever the coverage FTEs
- *     already include call.
+ *   - Call coverage: OVERNIGHT IN-HOUSE call — stipends, call-back pay, or locum
+ *     nights. OFF by default, and scoped deliberately narrowly: it overlaps the
+ *     labor-substitution line whenever the coverage FTEs already include call,
+ *     and it overlaps crnaPremiumPayLoad whenever that load was derived from
+ *     total payroll premium dollars, since such a figure already contains call
+ *     pay. crnaPremiumPayLoad covers SCHEDULED-DAY premium only.
  */
 
 import { PROGRAM_LENGTH_YEARS, RESIDENCY_YEARS_TO_CA2 } from "./constants";
@@ -63,9 +65,13 @@ export function retentionBenefit(
 }
 
 /**
- * Value of overnight in-house resident coverage, flat from the first year the
+ * Value of OVERNIGHT IN-HOUSE resident coverage, flat from the first year the
  * program has CA-2s (program year 3) — the point at which residents can
  * credibly hold the house overnight.
+ *
+ * Do not enable this if crnaPremiumPayLoad was derived from total payroll
+ * premium dollars: that figure already contains call pay, and the nights would
+ * be counted in both places.
  */
 export function callCoverageBenefit(
   call: CallCoverageInputs,

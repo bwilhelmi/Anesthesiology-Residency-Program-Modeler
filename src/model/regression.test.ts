@@ -78,15 +78,27 @@ const amount = (items: { key: string; amount: number }[], key: string): number =
  * The ceiling still exists as MEDICAL_DIRECTION_CONCURRENCY_LIMIT, which is
  * what the "beyond medical direction" warning is measured against. Only the
  * default operating assumption moved.
+ *
+ * UPDATED AGAIN (ADD-B): worked-hours backfill. A CRNA base salary buys 2,080
+ * PAID hours but only ~1,860 WORKED ones after vacation, CME, sick time, and
+ * paid holidays, so delivering one coverage-FTE-year takes ~1.12 paid FTEs. The
+ * resident side was already net of time off via fractionOnAnesthesia, so the
+ * comparison had been asymmetric against the CRNA cost. The labor-substitution
+ * line rises by the backfill factor 2080/1860 (+11.8%); nothing else moves at
+ * defaults except the totals and NPV that follow from it:
+ *
+ *   labor line     $3,545,693  ->  $3,965,076   (+11.8%)
+ *   NPV            +$3,329,532  ->  +$5,497,855
+ *   breakeven          year 7   ->      year 6
  * ------------------------------------------------------------------------ */
 describe("Frozen default program (P7.3)", () => {
   const r = runModel(DEFAULT_INPUTS);
 
   it("reports the frozen summary", () => {
-    expect(r.summary.nominalCumulativeNet).toBeCloseTo(6_931_762.99, 1);
-    expect(r.summary.npv).toBeCloseTo(3_329_531.97, 1);
-    expect(r.summary.breakevenYear).toBe(7);
-    expect(r.summary.steadyStateAnnualNet).toBeCloseTo(1_532_390.49, 1);
+    expect(r.summary.nominalCumulativeNet).toBeCloseTo(10_292_215.15, 1);
+    expect(r.summary.npv).toBeCloseTo(5_497_855.49, 1);
+    expect(r.summary.breakevenYear).toBe(6);
+    expect(r.summary.steadyStateAnnualNet).toBeCloseTo(1_951_773.55, 1);
   });
 
   it("reports the frozen mature year", () => {
@@ -95,7 +107,7 @@ describe("Frozen default program (P7.3)", () => {
 
     expect(amount(r.steadyState.benefits, "dgme")).toBeCloseTo(976_368, 0);
     expect(amount(r.steadyState.benefits, "ime")).toBeCloseTo(1_785_573, 0);
-    expect(amount(r.steadyState.benefits, "labor")).toBeCloseTo(3_545_693, 0);
+    expect(amount(r.steadyState.benefits, "labor")).toBeCloseTo(3_965_076, 0);
     expect(amount(r.steadyState.benefits, "offservice")).toBeCloseTo(257_035, 0);
     expect(amount(r.steadyState.benefits, "retention")).toBeCloseTo(785_592, 0);
 

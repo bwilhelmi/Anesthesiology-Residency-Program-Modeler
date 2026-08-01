@@ -208,12 +208,20 @@ export function App() {
               step={5000}
             />
             <PercentField
-              label="CRNA premium pay (overtime, holidays, differentials)"
-              help="Above base. Residents earn a fixed stipend however late the room runs or whichever holiday it falls on — a CRNA does not, so this is part of what resident coverage displaces. 12% is a placeholder: your payroll knows the real figure exactly."
+              label="CRNA premium pay (scheduled-day OT, weekend & holiday)"
+              help="Above base, for scheduled coverage — late-running rooms, weekend and holiday differentials. Overnight call is NOT here; the call-coverage section values that separately. Residents earn a fixed stipend however late the room runs, so this is part of what their coverage displaces."
               cite={[13]}
               clamp={{ min: 0, max: 1 }}
               value={inputs.salaries.crnaPremiumPayLoad}
               onChange={(v) => patchSalaries({ crnaPremiumPayLoad: v })}
+            />
+            <NumberField
+              label="CRNA worked hours per paid FTE / yr"
+              help="Out of 2,080 paid hours, after vacation, CME, sick and paid holidays. Covering a location all year takes 2,080 ÷ this many paid FTEs, so the shortfall is bought as overtime. Two consistent ways to set this and the load above: (a) structural — premium excludes PTO-backfill OT, leave this near 1,860; (b) payroll-derived — premium is ALL premium dollars ÷ base, set this to 2,080 so the backfill is not priced twice."
+              value={inputs.salaries.crnaWorkedHoursPerPaidFte}
+              onChange={(v) => patchSalaries({ crnaWorkedHoursPerPaidFte: v })}
+              clamp={{ min: 1, max: 2080 }}
+              step={20}
             />
             <div className="callout">
               One FTE of CRNA coverage costs{" "}
@@ -674,7 +682,7 @@ export function App() {
             )}
             <ToggleField
               label="Count overnight in-house call coverage"
-              help="Value of overnight coverage that would otherwise be CRNA call stipends/OT or locum nights. Do NOT enable this if your coverage FTEs already include call — it would count the same nights twice."
+              help="Value of OVERNIGHT IN-HOUSE call — stipends, call-back pay, or locum nights. Do NOT enable this if your coverage FTEs already include call, or if the CRNA premium load above was derived from total payroll premium dollars: that figure already contains call pay."
               value={inputs.callCoverage.enabled}
               onChange={(v) => patchCall({ enabled: v })}
             />

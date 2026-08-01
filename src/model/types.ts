@@ -38,9 +38,12 @@ export interface SalaryInputs {
   /** Median BASE salary for a CRNA (Certified Registered Nurse Anesthetist). */
   crnaSalary: number;
   /**
-   * Premium pay a CRNA earns above base, as a fraction of base salary:
-   * overtime on rooms that run past the scheduled day, holiday pay, and
-   * weekend/call differentials.
+   * Premium pay a CRNA earns above base for SCHEDULED-DAY coverage, as a
+   * fraction of base salary: overtime on rooms that run past the scheduled day,
+   * and weekend and holiday differentials for scheduled work.
+   *
+   * Deliberately excludes overnight in-house call, which the call-coverage
+   * module values separately — see CallCoverageInputs.
    *
    * This exists because the substitution is NOT symmetric. A resident is paid a
    * fixed stipend no matter how late the room runs or which holiday it falls
@@ -53,6 +56,24 @@ export interface SalaryInputs {
    * coverage being displaced, not of anyone's employment terms.
    */
   crnaPremiumPayLoad: number;
+  /**
+   * Hours a paid CRNA FTE actually works per year after vacation, CME, sick,
+   * and paid holidays, out of 2,080 paid hours. Covering a location for a full
+   * coverage-FTE-year therefore requires 2080 / this many paid FTEs (or the
+   * shortfall purchased as overtime). Typical range 1,780–1,940.
+   *
+   * PARAMETERIZATION TRAP — read before pulling numbers from payroll. There are
+   * two internally consistent ways to set this and crnaPremiumPayLoad, and
+   * mixing them double-counts PTO-backfill overtime:
+   *   (a) Structural: crnaPremiumPayLoad = differentials and late-room/holiday
+   *       OT only (exclude OT worked to cover colleagues' PTO), and
+   *       crnaWorkedHoursPerPaidFte = ~1,860 so the model prices the backfill.
+   *   (b) Payroll-derived: crnaPremiumPayLoad = ALL premium dollars ÷ base from
+   *       actual payroll (which already includes PTO-backfill OT), and
+   *       crnaWorkedHoursPerPaidFte = 2,080 so the model does not price it twice.
+   * Default is mode (a).
+   */
+  crnaWorkedHoursPerPaidFte: number;
   /** Annual resident stipend (roughly constant across PGY levels). */
   residentSalary: number;
   /**

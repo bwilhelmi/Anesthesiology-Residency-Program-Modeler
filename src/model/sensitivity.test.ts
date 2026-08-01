@@ -22,6 +22,8 @@ describe("Tornado (P5.1)", () => {
         "medicareshare",
         "imebase",
         "crna",
+        "crnaPremium",
+        "crnaWorkedHours",
         "anesthesiologist",
         "coverage",
         "throughput",
@@ -102,6 +104,43 @@ describe("Tornado (P5.1)", () => {
       byNet.find((b) => b.key === "discount")!.high,
       6
     );
+  });
+});
+
+describe("Payroll-settleable inputs on the tornado (B2)", () => {
+  it("shows a bar for each, with real width at the defaults", () => {
+    const bars = tornado(fixture);
+    for (const key of ["crnaPremium", "crnaWorkedHours"]) {
+      const bar = bars.find((b) => b.key === key);
+      expect(bar).toBeDefined();
+      expect(width(bar!)).toBeGreaterThan(0);
+    }
+  });
+
+  it("maps fewer worked hours to the higher metric, not the higher input", () => {
+    // Fewer worked hours per paid FTE means more paid FTEs per delivered
+    // coverage FTE, so the CRNA coverage being displaced is worth more.
+    const bar = tornado(fixture).find((b) => b.key === "crnaWorkedHours")!;
+    expect(bar.low).toBeGreaterThan(bar.high);
+  });
+
+  it("swings the premium load absolutely, between 5% and 20%", () => {
+    const bar = tornado(fixture).find((b) => b.key === "crnaPremium")!;
+    const at = (crnaPremiumPayLoad: number) =>
+      runModel({
+        ...fixture,
+        salaries: { ...fixture.salaries, crnaPremiumPayLoad },
+      }).summary.npv;
+    expect(bar.low).toBeCloseTo(at(0.05), 6);
+    expect(bar.high).toBeCloseTo(at(0.2), 6);
+  });
+
+  it("keeps the ordering deterministic with the new bars in play", () => {
+    const bars = tornado(fixture);
+    expect(tornado(fixture)).toEqual(bars);
+    for (let i = 1; i < bars.length; i++) {
+      expect(width(bars[i - 1])).toBeGreaterThanOrEqual(width(bars[i]));
+    }
   });
 });
 

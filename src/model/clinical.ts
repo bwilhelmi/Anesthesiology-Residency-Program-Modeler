@@ -25,6 +25,7 @@
  * 415.110). See incrementalSupervisionCostPerLocation().
  */
 
+import { PAID_HOURS_PER_FTE_YEAR } from "./constants";
 import type {
   ModelInputs,
   ResidencyYear,
@@ -84,13 +85,23 @@ export function coverageFteForYear(params: ResidentYearClinicalParams): number {
 }
 
 /**
- * What one FTE of CRNA coverage actually costs the hospital for a year: base
- * salary, plus the premium pay that coverage earns (overtime on late-running
- * rooms, holidays, weekend and call differentials), plus the fringe load.
+ * What one FTE of DELIVERED CRNA coverage actually costs the hospital for a
+ * year: base salary, plus the premium pay that scheduled coverage earns
+ * (overtime on late-running rooms, weekend and holiday differentials), plus the
+ * fringe load — and then grossed up for paid-versus-worked hours.
  *
- * This — not base salary — is the figure resident coverage displaces. The
- * substitution is asymmetric: a resident's stipend does not move when the room
- * runs until seven, or when the day is Thanksgiving.
+ * Two distinct asymmetries against a resident are priced here.
+ *
+ * The first is rate: a resident's stipend does not move when the room runs
+ * until seven, or when the day is Thanksgiving. A CRNA's pay does.
+ *
+ * The second is hours, and it is the one that hides. A base salary buys 2,080
+ * PAID hours, but only about 1,860 WORKED ones once vacation, CME, sick time,
+ * and paid holidays come out. Covering a location for a full coverage-FTE-year
+ * therefore takes roughly 1.12 paid CRNA FTEs — or the shortfall bought as
+ * overtime. The resident side needs no mirror of this: `fractionOnAnesthesia`
+ * is already net of resident vacation and didactics, so comparing a paid-FTE
+ * cost against a delivered-coverage figure would understate the CRNA side.
  *
  * Simplification: the fringe load is applied to premium dollars as well as
  * base. Payroll taxes and retirement match do scale with overtime earnings;
@@ -99,7 +110,16 @@ export function coverageFteForYear(params: ResidentYearClinicalParams): number {
  */
 export function crnaCostOfCoverage(salaries: SalaryInputs): number {
   const wages = salaries.crnaSalary * (1 + Math.max(0, salaries.crnaPremiumPayLoad));
-  return loaded(wages, salaries.benefitLoadRate);
+  // A non-finite worked-hours value (a corrupted saved payload, say) falls back
+  // to the full paid year rather than propagating NaN through every dollar in
+  // the model. The fallback is the conservative one: no backfill priced.
+  const workedHours = Number.isFinite(salaries.crnaWorkedHoursPerPaidFte)
+    ? salaries.crnaWorkedHoursPerPaidFte
+    : PAID_HOURS_PER_FTE_YEAR;
+  const paidFtePerCoverageFte =
+    PAID_HOURS_PER_FTE_YEAR /
+    Math.max(1, Math.min(PAID_HOURS_PER_FTE_YEAR, workedHours));
+  return loaded(wages, salaries.benefitLoadRate) * paidFtePerCoverageFte;
 }
 
 /** Labor value (CRNA cost offset) of one resident-year at a given level. */

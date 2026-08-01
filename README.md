@@ -34,7 +34,7 @@ pre-revenue build-up happen inside the projection, not in your head.
 | **Medicare Indirect Medical Education (IME)** | `IME% = 1.35 × [(1 + r)^0.405 − 1]` on Medicare inpatient operating payments, credited *marginally* because IME is nonlinear in the resident-to-bed ratio `r`, and clipped by the ratio cap. |
 | **Medicare capital IME** *(optional, off by default)* | `e^(0.2822 × r) − 1` on Medicare capital PPS payments. |
 | **Medicaid GME** | Per resident FTE, or a fixed annual appropriation that does **not** scale with program size — states differ in kind, not just amount. |
-| **Clinical labor substitution** | Residents help staff anesthetizing locations, offsetting CRNA/locum coverage. Valued at the **all-in** cost of that coverage — base salary, premium pay, and fringe — for the coverage each level provides *at the sponsor hospital*, capped at the locations the hospital actually runs. |
+| **Clinical labor substitution** | Residents help staff anesthetizing locations, offsetting CRNA/locum coverage. Valued at the **delivered-coverage cost of a CRNA**: base + scheduled-day premium pay + fringe, grossed up for paid-vs-worked hours (a paid FTE delivers ~1,860 of 2,080 hours). Counted for the coverage each level provides *at the sponsor hospital*, capped at the locations the hospital actually runs. |
 | **Off-service / intern service value** | Value delivered to host departments during required non-anesthesia rotations — credited only for months spent at the sponsor hospital. |
 | **Retention pipeline** | Graduates hired by the hospital or its group, valued at the recruiting, signing, and locum-bridge cost their hire **avoids**. This is an avoided cost, never revenue. |
 | **Overnight call coverage** *(optional, off by default)* | In-house nights that would otherwise be CRNA call stipends, overtime, or locum coverage. Leave it off if your coverage FTEs already include call. |
@@ -160,6 +160,22 @@ terms:
 So the coverage a resident displaces costs more than a base salary implies, and
 `crnaPremiumPayLoad` is where that is stated. It applies **only** to the
 labor-substitution credit; no cost line moves with it.
+
+There is a second asymmetry underneath it, in hours rather than rate. A base
+salary buys 2,080 **paid** hours but only about 1,860 **worked** ones, once
+vacation, CME, sick time, and paid holidays come out — so covering a location
+for a full year takes roughly 1.12 paid CRNA FTEs, with the shortfall bought as
+overtime. `crnaWorkedHoursPerPaidFte` prices that backfill. The resident side
+needs no mirror, because `fractionOnAnesthesia` is already net of resident
+vacation and didactics.
+
+Set the two together in one of two consistent ways — mixing them counts
+PTO-backfill overtime twice:
+
+| | premium load | worked hours |
+| --- | --- | --- |
+| **(a) Structural** (default) | differentials and late-room/holiday OT only, excluding OT worked to cover colleagues' PTO | ~1,860, so the model prices the backfill |
+| **(b) Payroll-derived** | ALL premium dollars ÷ base, straight from payroll | 2,080, so the backfill is not priced twice |
 
 The 12% default is a placeholder, not a survey figure — no public dataset
 isolates CRNA overtime as a share of base. Your payroll knows the real number

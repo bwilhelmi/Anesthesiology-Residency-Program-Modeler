@@ -26,6 +26,7 @@ import {
   EARLY_PRE_REVENUE_RAMP_FACTOR,
   MATURE_PROGRAM_YEAR,
   MEDICAL_DIRECTION_CONCURRENCY_LIMIT,
+  PREMIUM_LOAD_CALL_OVERLAP_THRESHOLD,
   RESIDENCY_YEARS_TO_CA2,
   TEACHING_ANESTHESIA_CONCURRENCY_LIMIT,
 } from "./constants";
@@ -276,6 +277,17 @@ export function computeYear(
   }
 
   const callCoverage = callCoverageBenefit(inputs.callCoverage, programYear);
+  if (
+    inputs.callCoverage.enabled &&
+    inputs.salaries.crnaPremiumPayLoad > PREMIUM_LOAD_CALL_OVERLAP_THRESHOLD
+  ) {
+    warnings.push(
+      "Call-coverage benefit is on while the CRNA premium load is high — confirm " +
+        "call pay is not counted in both places. A premium load taken straight from " +
+        "payroll already contains overnight call pay; the load should cover " +
+        "scheduled-day premium only."
+    );
+  }
   if (inputs.callCoverage.enabled) {
     benefits.push({
       key: "call",

@@ -120,17 +120,28 @@ export const TEACHING_ANESTHESIA_CONCURRENCY_LIMIT = 2;
  */
 export const DEFAULT_MEDICAL_DIRECTION_RATIO = 3;
 
+/** Paid hours in a full-time year: 40 hours × 52 weeks. */
+export const PAID_HOURS_PER_FTE_YEAR = 2080;
+
+/**
+ * Above this premium-pay load, a payroll-derived figure is likely to already
+ * contain overnight call pay — so having the call-coverage benefit switched on
+ * as well risks counting those nights twice. A prompt to check, not a rule.
+ */
+export const PREMIUM_LOAD_CALL_OVERLAP_THRESHOLD = 0.15;
+
 /* ----------------------------- Default salaries --------------------------- */
 
 export const DEFAULT_SALARIES = {
   anesthesiologistSalary: 400_000,
   crnaSalary: 220_000,
   /*
-   * Premium pay above base, as a fraction of base. The dominant term is
-   * overtime on rooms that run past the scheduled day; holidays and
-   * weekend/call differentials add to it. A resident on a fixed stipend earns
-   * none of it, which is exactly why it belongs in the value of the coverage
-   * they displace.
+   * Premium pay above base for SCHEDULED-DAY coverage, as a fraction of base.
+   * The dominant term is overtime on rooms that run past the scheduled day;
+   * weekend and holiday differentials add to it. Overnight in-house call is NOT
+   * here — the call-coverage module values that separately. A resident on a
+   * fixed stipend earns none of it, which is exactly why it belongs in the value
+   * of the coverage they displace.
    *
    * 12% is a planning placeholder, not a survey figure: no public dataset
    * reports CRNA overtime as a share of base (the AANA survey reports base and
@@ -141,6 +152,8 @@ export const DEFAULT_SALARIES = {
    * runs late, 20%+ where rooms routinely go past 5pm.
    */
   crnaPremiumPayLoad: 0.12,
+  // 2,080 paid − ~4 wks vacation − 1 wk CME − holidays/sick. Mode (a); see types.ts.
+  crnaWorkedHoursPerPaidFte: 1_860,
   residentSalary: 68_000,
   benefitLoadRate: 0.25,
   // Absolute dollars, not a percentage: health/dental premiums, retirement,

@@ -95,7 +95,7 @@ export const REFERENCES: Reference[] = [
   {
     n: 13,
     label: "AANA — Compensation and Benefits Survey (2024)",
-    note: "CRNA-specific benchmark used to calibrate the default CRNA market premium: median salary $251,000, average total compensation ~$256,000 — only a few percent above the BLS CRNA mean.",
+    note: "CRNA-specific benchmark used to calibrate the default CRNA market premium: median salary $251,000, average total compensation ~$256,000 — only a few percent above the BLS CRNA mean. It reports base and total compensation but does NOT isolate premium pay, which is why the model's premium-pay load has to come from hospital payroll rather than from any published survey. See also https://www.aana.com/membership/member-benefits/compensation-benefits-survey/",
     url: "https://www.aana.com/professional-development/compensation-and-benefits-survey/",
   },
   {

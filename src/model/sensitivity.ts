@@ -132,6 +132,37 @@ export function tornadoVariables(inputs: ModelInputs, swing: number): Variable[]
       }),
     },
     {
+      // Absolute, not relative: the plausible band is stated in constants.ts,
+      // and this is the input the code itself tells the user to replace with
+      // payroll data — so the bar should show what that replacement is worth.
+      key: "crnaPremium",
+      label: "CRNA premium pay load (OT/holiday/weekend)",
+      low: (i) => ({
+        ...i,
+        salaries: { ...i.salaries, crnaPremiumPayLoad: 0.05 },
+      }),
+      high: (i) => ({
+        ...i,
+        salaries: { ...i.salaries, crnaPremiumPayLoad: 0.2 },
+      }),
+    },
+    {
+      // Also absolute. Note the inversion: FEWER worked hours per paid FTE means
+      // more paid FTEs per delivered coverage-FTE, so the low input produces the
+      // HIGH metric. That falls out of the patch functions — the sort must not
+      // special-case it.
+      key: "crnaWorkedHours",
+      label: "CRNA worked hours per paid FTE",
+      low: (i) => ({
+        ...i,
+        salaries: { ...i.salaries, crnaWorkedHoursPerPaidFte: 1_780 },
+      }),
+      high: (i) => ({
+        ...i,
+        salaries: { ...i.salaries, crnaWorkedHoursPerPaidFte: 1_940 },
+      }),
+    },
+    {
       key: "coverage",
       label: "Resident coverage capability (all levels)",
       low: (i) => scaleCoverage(i, lo),

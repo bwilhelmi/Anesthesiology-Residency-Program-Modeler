@@ -357,24 +357,80 @@ describe("Clinical value", () => {
   });
 });
 
-describe("CRNA premium pay", () => {
+describe("CRNA cost of coverage", () => {
+  /** Rate-only inputs: worked hours pinned at 2,080 so no backfill applies. */
+  const rateOnly = (over: Partial<typeof DEFAULT_INPUTS.salaries> = {}) => ({
+    ...DEFAULT_INPUTS.salaries,
+    crnaWorkedHoursPerPaidFte: 2080,
+    ...over,
+  });
+
   it("values coverage at base + premium + fringe", () => {
-    const salaries = {
-      ...DEFAULT_INPUTS.salaries,
-      crnaSalary: 200_000,
-      crnaPremiumPayLoad: 0.1,
-      benefitLoadRate: 0.25,
-    };
     // 200,000 × 1.10 = 220,000 of wages, × 1.25 fringe = 275,000.
-    expect(crnaCostOfCoverage(salaries)).toBeCloseTo(275_000, 6);
+    expect(
+      crnaCostOfCoverage(
+        rateOnly({ crnaSalary: 200_000, crnaPremiumPayLoad: 0.1, benefitLoadRate: 0.25 })
+      )
+    ).toBeCloseTo(275_000, 6);
   });
 
   it("reduces to plain loaded salary when there is no premium", () => {
-    const salaries = { ...DEFAULT_INPUTS.salaries, crnaPremiumPayLoad: 0 };
+    const salaries = rateOnly({ crnaPremiumPayLoad: 0 });
     expect(crnaCostOfCoverage(salaries)).toBeCloseTo(
       loaded(salaries.crnaSalary, salaries.benefitLoadRate),
       6
     );
+  });
+
+  it("ignores a negative premium rather than crediting one", () => {
+    const salaries = rateOnly({ crnaPremiumPayLoad: -0.5 });
+    expect(crnaCostOfCoverage(salaries)).toBeCloseTo(
+      loaded(salaries.crnaSalary, salaries.benefitLoadRate),
+      6
+    );
+  });
+
+  it("grosses up for paid-versus-worked hours at the defaults (B1)", () => {
+    // 220,000 × 1.12 × 1.25 × (2080/1860).
+    expect(crnaCostOfCoverage(DEFAULT_INPUTS.salaries)).toBeCloseTo(344_430, -1);
+  });
+
+  it("reproduces the un-backfilled figure at 2,080 worked hours (mode (b) anchor)", () => {
+    expect(
+      crnaCostOfCoverage({ ...DEFAULT_INPUTS.salaries, crnaWorkedHoursPerPaidFte: 2080 })
+    ).toBeCloseTo(308_000, 6);
+  });
+
+  it("costs more per delivered coverage FTE as worked hours fall", () => {
+    const at = (crnaWorkedHoursPerPaidFte: number) =>
+      crnaCostOfCoverage({ ...DEFAULT_INPUTS.salaries, crnaWorkedHoursPerPaidFte });
+    expect(at(1_780)).toBeGreaterThan(at(1_860));
+    expect(at(1_860)).toBeGreaterThan(at(1_940));
+  });
+
+  it("clamps nonsense worked-hours values instead of producing NaN or Infinity", () => {
+    for (const crnaWorkedHoursPerPaidFte of [0, -500, 1e9, Number.NaN]) {
+      const cost = crnaCostOfCoverage({
+        ...DEFAULT_INPUTS.salaries,
+        crnaWorkedHoursPerPaidFte,
+      });
+      if (Number.isNaN(crnaWorkedHoursPerPaidFte)) {
+        // NaN survives the min/max comparison chain; guard that it cannot make
+        // the model silently produce NaN dollars everywhere downstream.
+        expect(Number.isFinite(cost)).toBe(true);
+      } else {
+        expect(Number.isFinite(cost)).toBe(true);
+        expect(cost).toBeGreaterThan(0);
+      }
+    }
+    // Above 2,080 there is no backfill to price, so it floors at the rate cost.
+    expect(
+      crnaCostOfCoverage({ ...DEFAULT_INPUTS.salaries, crnaWorkedHoursPerPaidFte: 4000 })
+    ).toBeCloseTo(308_000, 6);
+    // Below 1 hour it is capped rather than exploding.
+    expect(
+      crnaCostOfCoverage({ ...DEFAULT_INPUTS.salaries, crnaWorkedHoursPerPaidFte: 0 })
+    ).toBeCloseTo(308_000 * 2080, 6);
   });
 
   it("raises the labor benefit without touching any cost line", () => {
@@ -397,13 +453,27 @@ describe("CRNA premium pay", () => {
       );
     }
   });
+});
 
-  it("ignores a negative premium rather than crediting one", () => {
-    const salaries = { ...DEFAULT_INPUTS.salaries, crnaPremiumPayLoad: -0.5 };
-    expect(crnaCostOfCoverage(salaries)).toBeCloseTo(
-      loaded(salaries.crnaSalary, salaries.benefitLoadRate),
-      6
-    );
+describe("Call-pay double-count guardrail (B3)", () => {
+  const withCall = (crnaPremiumPayLoad: number, enabled = true): ModelInputs => ({
+    ...DEFAULT_INPUTS,
+    salaries: { ...DEFAULT_INPUTS.salaries, crnaPremiumPayLoad },
+    callCoverage: { ...DEFAULT_INPUTS.callCoverage, enabled },
+  });
+  const fires = (inputs: ModelInputs) =>
+    runModel(inputs).warnings.some((w) => /counted in both places/.test(w));
+
+  it("warns when call coverage is on and the premium load is high", () => {
+    expect(fires(withCall(0.16))).toBe(true);
+  });
+
+  it("stays silent at a scheduled-day-only premium load", () => {
+    expect(fires(withCall(0.12))).toBe(false);
+  });
+
+  it("stays silent when call coverage is off, however high the load", () => {
+    expect(fires(withCall(0.4, false))).toBe(false);
   });
 });
 
