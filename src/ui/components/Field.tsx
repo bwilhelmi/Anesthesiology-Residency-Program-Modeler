@@ -130,19 +130,27 @@ export function PercentField({
   );
 }
 
-/** A slider + readout for a [0,1] fraction. */
+/**
+ * A slider + readout. Defaults to a [0,1] fraction in 1% steps; `min` and `step`
+ * open it up to ranges that are not fractions — a supervision ratio, say, where
+ * the meaningful span is 2 to 4 and the meaningful grain is a tenth.
+ */
 export function SliderField({
   label,
   help,
   cite,
   value,
   onChange,
+  min = 0,
   max = 1,
+  step,
   format = (v: number) => percent(v),
 }: BaseProps & {
   value: number;
   onChange: (v: number) => void;
+  min?: number;
   max?: number;
+  step?: number;
   format?: (v: number) => string;
 }) {
   return (
@@ -154,9 +162,9 @@ export function SliderField({
       <input
         className="slider"
         type="range"
-        min={0}
+        min={min}
         max={max}
-        step={max / 100}
+        step={step ?? (max - min) / 100}
         value={value}
         onChange={(e) => onChange(e.target.valueAsNumber)}
       />

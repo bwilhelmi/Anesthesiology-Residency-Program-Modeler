@@ -417,6 +417,35 @@ describe("Incremental attending supervision (P0.1)", () => {
     expect(10 * perLocation).toBeCloseTo(1_250_000, 6);
   });
 
+  it("handles fine-grained direction ratios between 1:2 and 1:4", () => {
+    const salaries = {
+      ...DEFAULT_INPUTS.salaries,
+      anesthesiologistSalary: 400_000,
+      benefitLoadRate: 0.25,
+    };
+    const at = (maxCrnaSupervisionRatio: number) =>
+      incrementalSupervisionCostPerLocation(salaries, {
+        maxResidentSupervisionRatio: 2,
+        maxCrnaSupervisionRatio,
+      });
+
+    // $500,000 loaded × (1/2 − 1/N).
+    expect(at(4)).toBeCloseTo(125_000, 6);
+    expect(at(3.5)).toBeCloseTo(500_000 * (0.5 - 1 / 3.5), 6);
+    expect(at(3)).toBeCloseTo(500_000 * (0.5 - 1 / 3), 6);
+    expect(at(2.5)).toBeCloseTo(500_000 * (0.5 - 1 / 2.5), 6);
+    // At 1:2 the resident room costs no more attending time than a CRNA room.
+    expect(at(2)).toBe(0);
+
+    // Monotonic across the slider's whole range, in tenths.
+    let previous = -1;
+    for (let ratio = 2; ratio <= 4.0001; ratio += 0.1) {
+      const cost = at(Math.round(ratio * 10) / 10);
+      expect(cost).toBeGreaterThanOrEqual(previous);
+      previous = cost;
+    }
+  });
+
   it("is zero when residents and CRNAs tie up the same attending time", () => {
     expect(
       incrementalSupervisionCostPerLocation(DEFAULT_INPUTS.salaries, {

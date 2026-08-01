@@ -351,7 +351,7 @@ export function computeYear(
       key: "supervision",
       label: "Incremental attending supervision (1:2 teaching vs 1:4 direction)",
       amount: supervisionCost,
-      detail: `${round1(coveredLocations)} resident-covered location(s) × the extra attending time a teaching room consumes at 1:${inputs.supervision.maxResidentSupervisionRatio} (42 CFR 415.178) versus a medically directed CRNA room at 1:${inputs.supervision.maxCrnaSupervisionRatio} (42 CFR 415.110).`,
+      detail: `${round1(coveredLocations)} resident-covered location(s) × the extra attending time a teaching room consumes at 1:${round1(inputs.supervision.maxResidentSupervisionRatio)} (42 CFR 415.178) versus a medically directed CRNA room at 1:${round1(inputs.supervision.maxCrnaSupervisionRatio)} (42 CFR 415.110).`,
     },
   ];
 

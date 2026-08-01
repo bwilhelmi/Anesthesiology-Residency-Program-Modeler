@@ -173,11 +173,29 @@ build-out and one that breaks even in year 9.
 ## Supervision & billing ratios
 
 Resident coverage cuts both ways. A teaching anesthesiologist may be involved in
-**2 concurrent resident cases** at full payment (42 CFR 415.178), against **4
-concurrent medically directed CRNA cases** (42 CFR 415.110). Residents therefore
-substitute for CRNA labor *and* consume more attending time per room than the
-CRNAs they replace. The model charges both sides; earlier versions collected only
-the benefit.
+**2 concurrent resident cases** at full payment (42 CFR 415.178), against up to
+**4 concurrent medically directed CRNA cases** (42 CFR 415.110). Residents
+therefore substitute for CRNA labor *and* consume more attending time per room
+than the CRNAs they replace. The model charges both sides; earlier versions
+collected only the benefit.
+
+The direction ratio is a **slider from 1:2 to 1:4 in tenths**, because 1:4 is a
+regulatory ceiling rather than an operating average — complexity and room
+geography routinely force 1:3 or lower. Set it to what your department actually
+runs. It is the largest single assumption in the model:
+
+| Direction ratio | Incremental cost per resident-covered room | NPV at defaults |
+| --- | --- | --- |
+| 1:2 | $0 | +$8.29M |
+| 1:3 | $83,333 | +$3.33M |
+| 1:4 | $125,000 | +$0.85M |
+
+At 1:2 the cost vanishes entirely — the resident room ties up no more attending
+time than the CRNA room it replaced. One caveat the slider cannot express: if
+your CRNAs practice **independently** (an opt-out state, or medical supervision
+rather than direction), the counterfactual room consumes *no* attending at all,
+the resident room's full half-attending is incremental, and the model as
+configured understates the cost substantially.
 
 ---
 

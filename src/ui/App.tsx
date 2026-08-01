@@ -7,6 +7,7 @@ import {
   YEAR_LABELS,
   crnaCostOfCoverage,
   effectivePra,
+  incrementalSupervisionCostPerLocation,
   runModel,
   staffedLocationDemand,
   steadyStateCoverageFte,
@@ -496,15 +497,38 @@ export function App() {
             subtitle="Medicare teaching & medical-direction limits"
             defaultOpen={false}
           >
-            <NumberField
-              label="Max CRNA cases per anesthesiologist"
+            <SliderField
+              label="Medical direction: CRNA rooms per anesthesiologist"
               cite={[18]}
-              clamp={{ min: 1 }}
-              help="Medicare medical-direction limit is 4 concurrent cases."
+              help="What your department actually runs — not the ceiling. Medicare permits up to 1:4 (42 CFR 415.110), but case complexity and room geography often force 1:3 or lower. This is the counterfactual a resident room is compared against, and it is the single largest assumption in the model."
               value={inputs.supervision.maxCrnaSupervisionRatio}
-              onChange={(v) => patchSup({ maxCrnaSupervisionRatio: v })}
-              step={1}
+              onChange={(v) =>
+                patchSup({ maxCrnaSupervisionRatio: Math.round(v * 10) / 10 })
+              }
+              min={2}
+              max={4}
+              step={0.1}
+              format={(v) => `1:${v.toFixed(1)}`}
             />
+            <div className="callout">
+              A resident room ties up{" "}
+              <strong>
+                {percent(1 / Math.max(1, inputs.supervision.maxResidentSupervisionRatio))}
+              </strong>{" "}
+              of an anesthesiologist against{" "}
+              <strong>
+                {percent(1 / Math.max(1, inputs.supervision.maxCrnaSupervisionRatio))}
+              </strong>{" "}
+              for a medically directed CRNA room — an incremental{" "}
+              <strong>
+                {currency(
+                  incrementalSupervisionCostPerLocation(inputs.salaries, inputs.supervision)
+                )}
+              </strong>{" "}
+              per covered location per year. At 1:2 the two are identical and the cost
+              vanishes; if your CRNAs practice independently, the full attending is
+              incremental and this understates it.
+            </div>
             <NumberField
               label="Max resident cases per teaching anesthesiologist"
               cite={[19]}
