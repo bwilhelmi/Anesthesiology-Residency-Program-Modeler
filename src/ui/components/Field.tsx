@@ -7,7 +7,22 @@ type BaseProps = {
   help?: string;
   /** Bibliography entry numbers backing this figure, shown as a superscript. */
   cite?: number[];
+  /**
+   * Soft bounds, applied ON BLUR only. Typing is never blocked or rewritten
+   * mid-keystroke — a field that fights the keyboard is worse than a field that
+   * briefly holds a nonsense number.
+   */
+  clamp?: { min?: number; max?: number };
 };
+
+/** Apply soft bounds to a settled value. */
+function applyClamp(v: number, clamp?: { min?: number; max?: number }): number {
+  if (!clamp) return v;
+  let out = v;
+  if (clamp.min !== undefined) out = Math.max(clamp.min, out);
+  if (clamp.max !== undefined) out = Math.min(clamp.max, out);
+  return out;
+}
 
 /** A field label with its optional source footnote. */
 function Label({ label, cite }: { label: string; cite?: number[] }) {
@@ -24,6 +39,7 @@ export function NumberField({
   label,
   help,
   cite,
+  clamp,
   value,
   onChange,
   min,
@@ -60,6 +76,10 @@ export function NumberField({
             const v = e.target.valueAsNumber;
             onChange(Number.isNaN(v) ? 0 : v);
           }}
+          onBlur={() => {
+            const settled = applyClamp(value, clamp);
+            if (settled !== value) onChange(settled);
+          }}
         />
         {suffix && <span className="affix">{suffix}</span>}
       </span>
@@ -73,6 +93,7 @@ export function PercentField({
   label,
   help,
   cite,
+  clamp,
   value,
   onChange,
   max = 100,
@@ -96,6 +117,10 @@ export function PercentField({
           onChange={(e) => {
             const v = e.target.valueAsNumber;
             onChange(Number.isNaN(v) ? 0 : v / 100);
+          }}
+          onBlur={() => {
+            const settled = applyClamp(value, clamp);
+            if (settled !== value) onChange(settled);
           }}
         />
         <span className="affix">%</span>

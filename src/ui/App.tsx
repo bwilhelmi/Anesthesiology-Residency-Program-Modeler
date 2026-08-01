@@ -222,6 +222,7 @@ export function App() {
             />
             <PercentField
               label="Benefit / fringe load (attendings & CRNAs)"
+              clamp={{ min: 0, max: 1 }}
               help="Added on top of base salary for benefits, taxes, malpractice. Residents use the absolute figure above instead."
               value={inputs.salaries.benefitLoadRate}
               onChange={(v) => patchSalaries({ benefitLoadRate: v })}
@@ -364,6 +365,7 @@ export function App() {
             )}
             <PercentField
               label="Medicare share of inpatient days (FFS + Medicare Advantage)"
+              clamp={{ min: 0, max: 1 }}
               help="The Medicare utilization ratio that apportions Direct GME. Medicare Advantage days belong in it (42 CFR 413.76 et seq.); the MA-related DGME is paid through the associated add-on stream."
               value={inputs.gme.medicareInpatientShare}
               onChange={(v) => patchGme({ medicareInpatientShare: v })}
@@ -470,6 +472,7 @@ export function App() {
           >
             <NumberField
               label="Max CRNA cases per anesthesiologist"
+              clamp={{ min: 1 }}
               help="Medicare medical-direction limit is 4 concurrent cases."
               value={inputs.supervision.maxCrnaSupervisionRatio}
               onChange={(v) => patchSup({ maxCrnaSupervisionRatio: v })}
@@ -477,6 +480,7 @@ export function App() {
             />
             <NumberField
               label="Max resident cases per teaching anesthesiologist"
+              clamp={{ min: 1 }}
               help="Medicare allows up to 2 concurrent resident cases at 100% billing."
               value={inputs.supervision.maxResidentSupervisionRatio}
               onChange={(v) => patchSup({ maxResidentSupervisionRatio: v })}
@@ -666,24 +670,28 @@ export function App() {
             />
             <PercentField
               label="Discount rate"
+              clamp={{ min: 0, max: 1 }}
               help="Hospital hurdle rate / WACC proxy, used for NPV and breakeven."
               value={inputs.projection.discountRate}
               onChange={(v) => patchProjection({ discountRate: v })}
             />
             <PercentField
               label="Salary inflation"
+              clamp={{ min: 0, max: 1 }}
               help="Applied to all wages and benefits, including resident stipends."
               value={inputs.projection.salaryInflation}
               onChange={(v) => patchProjection({ salaryInflation: v })}
             />
             <PercentField
               label="PRA update rate"
+              clamp={{ min: 0, max: 1 }}
               help="Annual CMS update to the Per-Resident Amount (CPI-U proxy, 42 CFR 413.77)."
               value={inputs.projection.praUpdateRate}
               onChange={(v) => patchProjection({ praUpdateRate: v })}
             />
             <PercentField
               label="Payment base growth"
+              clamp={{ min: 0, max: 1 }}
               help="Applied to the Medicare IME base, the margin per staffed location, and off-service provider cost. State Medicaid GME is deliberately not escalated."
               value={inputs.projection.paymentBaseGrowth}
               onChange={(v) => patchProjection({ paymentBaseGrowth: v })}
@@ -746,6 +754,16 @@ export function App() {
                   help="Credited only for off-service time spent at the sponsor hospital."
                   value={inputs.clinical[year].offServiceCoverageFte}
                   onChange={(v) => patchClinical(year, { offServiceCoverageFte: v })}
+                />
+                <NumberField
+                  label="Off-service provider cost / yr"
+                  help="Fully-loaded cost of the mid-level provider whose work the resident offsets while off service."
+                  value={inputs.clinical[year].offServiceProviderAnnualCost}
+                  onChange={(v) =>
+                    patchClinical(year, { offServiceProviderAnnualCost: Math.max(0, v) })
+                  }
+                  prefix="$"
+                  step={5000}
                 />
                 <SliderField
                   label="IME-countable share of sponsor time"
