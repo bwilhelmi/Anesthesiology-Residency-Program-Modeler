@@ -1137,8 +1137,7 @@ td.pos,
 /* --- Year table interaction ----------------------------------------------- */
 
 .table-caption {
-  caption-side: top;
-  text-align: left;
+  margin: 0 0 var(--space-2);
   font-size: 12.5px;
   line-height: 18px;
   color: var(--color-neutral-700);

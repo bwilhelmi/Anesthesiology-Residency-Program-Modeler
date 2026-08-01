@@ -473,9 +473,14 @@ describe("Coverage cannot exceed staffed-location demand (P0.3)", () => {
 
   it("warns that the excess residents add cost but no coverage value", () => {
     const r = runModel(oversized);
-    expect(r.warnings.some((w) => /exceeds the .* staffed anesthetizing locations/.test(w)))
-      .toBe(true);
-    // Warnings are de-duplicated across years at the result level.
+    const capped = r.warnings.filter((w) =>
+      /exceeds the .* staffed anesthetizing locations/.test(w)
+    );
+    expect(capped).toHaveLength(1);
+    // Every year past the cap raises it, and the result-level union collapses
+    // them to one — which only works because the text carries no year-specific
+    // figure. Those live in the labor line-item detail instead.
+    expect(r.years.filter((y) => y.warnings.length > 0).length).toBeGreaterThan(1);
     expect(new Set(r.warnings).size).toBe(r.warnings.length);
   });
 

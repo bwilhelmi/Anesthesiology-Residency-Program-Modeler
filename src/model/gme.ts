@@ -47,6 +47,7 @@ import {
   IME_EXPONENT,
   IME_MULTIPLIER,
   PROGRAM_LENGTH_YEARS,
+  ROLLING_AVERAGE_YEARS,
 } from "./constants";
 import type { GmeFundingInputs, MedicaidGmeInputs, ResidencyYear } from "./types";
 import { RESIDENCY_YEARS } from "./types";
@@ -377,9 +378,12 @@ export function gmeFundingTimeline(
   return out;
 }
 
-/** Average of the last three entries (or fewer, early in the series). */
+/**
+ * Average of the last ROLLING_AVERAGE_YEARS entries (or fewer, early in the
+ * series) — 42 CFR 413.79(d)(1).
+ */
 function rollingAverage(history: number[]): number {
-  const window = history.slice(-3);
+  const window = history.slice(-ROLLING_AVERAGE_YEARS);
   return window.reduce((a, b) => a + b, 0) / window.length;
 }
 

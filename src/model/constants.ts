@@ -53,6 +53,20 @@ export const PROGRAM_LENGTH_YEARS = 4;
 export const CAP_BUILDING_WINDOW_YEARS = 5;
 
 /**
+ * The rolling-average window for payment FTE counts: the current cost-reporting
+ * period and the two preceding ones — 42 CFR 413.79(d)(1).
+ */
+export const ROLLING_AVERAGE_YEARS = 3;
+
+/**
+ * How much of the Program Director's protected time and fixed overhead runs in
+ * a pre-revenue year BEFORE the final one. A modeling assumption, not a rule:
+ * the PD is hired early but not yet running a program, while the final
+ * pre-launch year carries full recruitment and accreditation activity.
+ */
+export const EARLY_PRE_REVENUE_RAMP_FACTOR = 0.5;
+
+/**
  * The first program year in which the permanent cap, the rolling average, and
  * the IME ratio cap all bind — i.e. the first year that shows mature-program
  * economics rather than growth-window economics.

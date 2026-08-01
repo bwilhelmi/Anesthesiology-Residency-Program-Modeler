@@ -23,6 +23,7 @@ import {
   totalCoverageFte,
 } from "./clinical";
 import {
+  EARLY_PRE_REVENUE_RAMP_FACTOR,
   MATURE_PROGRAM_YEAR,
   MEDICAL_DIRECTION_CONCURRENCY_LIMIT,
   RESIDENCY_YEARS_TO_CA2,
@@ -185,12 +186,14 @@ export function computeYear(
   const demand = staffedLocationDemand(inputs);
   const demandCapFactor = rawCoverage > demand && rawCoverage > 0 ? demand / rawCoverage : 1;
   if (demandCapFactor < 1) {
+    // Deliberately free of year-specific numbers: this warning is emitted by
+    // every year past the cap, and the result-level union de-duplicates on the
+    // exact string. The per-year figures live in the labor line-item detail.
     warnings.push(
-      `Modeled resident coverage (${round1(rawCoverage)} anesthetist-equivalent FTE) ` +
-        `exceeds the ${round1(demand)} staffed anesthetizing locations the hospital runs ` +
-        `on an average day. Coverage value, supervision cost, and throughput loss are ` +
-        `capped at demand: residents beyond that point add cost but no additional ` +
-        `coverage value.`
+      `Modeled resident coverage exceeds the ${round1(demand)} staffed anesthetizing ` +
+        `locations the hospital runs on an average day. Coverage value, supervision ` +
+        `cost, and throughput loss are capped at demand: residents beyond that point ` +
+        `add cost but no additional coverage value.`
     );
   }
   const coveredLocations = rawCoverage * demandCapFactor;
@@ -243,7 +246,7 @@ export function computeYear(
       amount: laborValue,
       detail:
         demandCapFactor < 1
-          ? `Anesthetist-equivalent coverage residents provide, valued at fully-loaded CRNA cost — capped at the ${round1(demand)} staffed locations the hospital runs.`
+          ? `Anesthetist-equivalent coverage residents provide, valued at fully-loaded CRNA cost. This year's ${round1(rawCoverage)} FTE of coverage is capped at the ${round1(demand)} staffed locations the hospital runs.`
           : "Anesthetist-equivalent coverage residents provide, valued at fully-loaded CRNA cost.",
     },
     {
@@ -495,7 +498,7 @@ export function computePreRevenueYear(
     escalated.salaries.benefitLoadRate
   );
   const isFinalPreRevenueYear = programYear === 0;
-  const rampFactor = isFinalPreRevenueYear ? 1 : 0.5;
+  const rampFactor = isFinalPreRevenueYear ? 1 : EARLY_PRE_REVENUE_RAMP_FACTOR;
   const preRevenueYears = Math.max(1, Math.round(inputs.projection.preRevenueYears));
 
   const pdFte = escalated.program.programDirectorFte * rampFactor;

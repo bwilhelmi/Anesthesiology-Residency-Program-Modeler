@@ -236,69 +236,73 @@ function YearTable({
   onSelect: (programYear: number) => void;
 }) {
   return (
-    <div className="table-wrap">
-      <table className="ramp">
-        <caption className="table-caption">
-          Select a year to see its breakdown below. Shaded rows are pre-launch years, with
-          spending and no residents; the ruled row is the mature year, where the Medicare
-          cap, the rolling average, and the IME ratio cap all bind.
-        </caption>
-        <thead>
-          <tr>
-            <th>Program year</th>
-            <th>Residents</th>
-            {RESIDENCY_YEARS.map((y) => (
-              <th key={y} title={YEAR_LABELS[y]}>
-                {y}
-              </th>
-            ))}
-            <th>Benefits</th>
-            <th>Costs</th>
-            <th>Net</th>
-          </tr>
-        </thead>
-        <tbody>
-          {years.map((r) => (
-            <tr
-              key={r.programYear}
-              className={[
-                r.programYear <= 0 ? "prelaunch" : "",
-                r.programYear === matureYear ? "mature" : "",
-                r.programYear === selectedYear ? "selected" : "",
-              ]
-                .filter(Boolean)
-                .join(" ")}
-              onClick={() => onSelect(r.programYear)}
-              aria-selected={r.programYear === selectedYear}
-            >
-              <td>
-                <button
-                  type="button"
-                  className="link-btn"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onSelect(r.programYear);
-                  }}
-                >
-                  {yearLabel(r.programYear)}
-                </button>
-              </td>
-              <td>{number(r.totalResidents, r.totalResidents % 1 === 0 ? 0 : 1)}</td>
+    <>
+      {/* Outside the scroll container: a caption inside it inherits the table's
+          width and gets clipped when the table is wider than the column. */}
+      <p className="table-caption">
+        Select a year to see its breakdown below. Shaded rows are pre-launch years, with
+        spending and no residents; the ruled row is the mature year, where the Medicare
+        cap, the rolling average, and the IME ratio cap all bind.
+      </p>
+      <div className="table-wrap">
+        <table className="ramp">
+          <thead>
+            <tr>
+              <th>Program year</th>
+              <th>Residents</th>
               {RESIDENCY_YEARS.map((y) => (
-                <td key={y}>
-                  {number(
-                    r.residentsByYear[y],
-                    r.residentsByYear[y] % 1 === 0 ? 0 : 1
-                  )}
-                </td>
+                <th key={y} title={YEAR_LABELS[y]}>
+                  {y}
+                </th>
               ))}
-              <td>{fig(r.totalBenefits, { compact: true })}</td>
-              <td>{fig(r.totalCosts, { compact: true })}</td>
-              <td className={netClass(r.netValue)}>{fig(r.netValue, { compact: true })}</td>
+              <th>Benefits</th>
+              <th>Costs</th>
+              <th>Net</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            {years.map((r) => (
+              <tr
+                key={r.programYear}
+                className={[
+                  r.programYear <= 0 ? "prelaunch" : "",
+                  r.programYear === matureYear ? "mature" : "",
+                  r.programYear === selectedYear ? "selected" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+                onClick={() => onSelect(r.programYear)}
+                aria-selected={r.programYear === selectedYear}
+              >
+                <td>
+                  <button
+                    type="button"
+                    className="link-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSelect(r.programYear);
+                    }}
+                  >
+                    {yearLabel(r.programYear)}
+                  </button>
+                </td>
+                <td>{number(r.totalResidents, r.totalResidents % 1 === 0 ? 0 : 1)}</td>
+                {RESIDENCY_YEARS.map((y) => (
+                  <td key={y}>
+                    {number(
+                      r.residentsByYear[y],
+                      r.residentsByYear[y] % 1 === 0 ? 0 : 1
+                    )}
+                  </td>
+                ))}
+                <td>{fig(r.totalBenefits, { compact: true })}</td>
+                <td>{fig(r.totalCosts, { compact: true })}</td>
+                <td className={netClass(r.netValue)}>{fig(r.netValue, { compact: true })}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 }
