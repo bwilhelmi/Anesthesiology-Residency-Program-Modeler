@@ -31,11 +31,18 @@ import { currency, number, percent } from "./format";
 
 /**
  * Bumped whenever the input shape changes incompatibly. The restore below is a
- * shallow merge, so a v1 payload would reinstate an entire stale `gme` object
- * (with the old cap boolean and no Medicaid mode) and break the model — a new
- * key retires those saves instead of half-restoring them.
+ * shallow merge, so a stale payload reinstates an entire top-level object —
+ * `salaries`, `gme` — missing whatever fields have been added since, and the
+ * defaults for those never apply. That failure is SILENT: the model keeps
+ * computing, just without the new term. A v3 save, for instance, carries no
+ * crnaWorkedHoursPerPaidFte, so the worked-hours backfill quietly does not
+ * apply and the labor benefit reads 11.8% low.
+ *
+ * ANY new field on a nested input object therefore needs a key bump here, in
+ * the same commit. Retiring old saves is the honest failure mode; half of a
+ * model is worse than a clean reset.
  */
-const STORAGE_KEY = "anesthesia-residency-model-inputs-v3";
+const STORAGE_KEY = "anesthesia-residency-model-inputs-v4";
 
 function loadInitial(): ModelInputs {
   try {
