@@ -41,13 +41,14 @@ interface Variable {
   high: Patch;
 }
 
-/** Scale every level's coverage capability by one multiplier. */
+/** Scale every level's per-hour productivity by one multiplier. */
 function scaleCoverage(inputs: ModelInputs, factor: number): ModelInputs {
   const clinical = {} as ModelInputs["clinical"];
   for (const year of RESIDENCY_YEARS as ResidencyYear[]) {
     clinical[year] = {
       ...inputs.clinical[year],
-      anesthesiaCoverageFte: inputs.clinical[year].anesthesiaCoverageFte * factor,
+      anesthesiaProductivityPerHour:
+        inputs.clinical[year].anesthesiaProductivityPerHour * factor,
     };
   }
   return { ...inputs, clinical };
@@ -164,7 +165,7 @@ export function tornadoVariables(inputs: ModelInputs, swing: number): Variable[]
     },
     {
       key: "coverage",
-      label: "Resident coverage capability (all levels)",
+      label: "Resident productivity per duty hour (all levels)",
       low: (i) => scaleCoverage(i, lo),
       high: (i) => scaleCoverage(i, hi),
     },

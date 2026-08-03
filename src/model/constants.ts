@@ -172,11 +172,15 @@ export const DEFAULT_SALARIES = {
  * departments. CA-1 through CA-3 progressively cover more anesthetizing
  * locations with less oversight.
  *
- * `anesthesiaCoverageFte` values are NET-OF-SLOWDOWN staffing equivalences: the
- * anesthetist-FTE a resident at that level actually displaces, already
- * reflecting that they work more slowly than an experienced CRNA. The separate
- * `caseThroughputLoss` input values the hospital's lost case margin and is not
- * applied here — see EfficiencyInputs.
+ * `anesthesiaProductivityPerHour` is what a resident produces in one duty hour
+ * relative to a CRNA in one of theirs. The defaults are the values ALREADY
+ * IMPLIED by the previous blended coverage figures at 60 duty hours a week —
+ * this was a re-expression, not a re-valuation, so that any change in the
+ * clinical claim is a separate and visible decision. Judge them directly: is a
+ * CA-3 really about 60% of a CRNA in the hour they both stand in a room?
+ *
+ * The separate `caseThroughputLoss` input values the hospital's lost case
+ * margin and is not applied here — see EfficiencyInputs.
  */
 export const DEFAULT_CLINICAL: Record<ResidencyYear, ResidentYearClinicalParams> = {
   PGY1: {
@@ -188,8 +192,12 @@ export const DEFAULT_CLINICAL: Record<ResidencyYear, ResidentYearClinicalParams>
     // Conditional on being at the sponsor site. Composite anesthesia exposure
     // is 0.5 × 0.3 = 0.15 — the same year-level exposure the model used before
     // site allocation existed.
+    // Intern duty hours run at least as heavy as the CA years, largely off
+    // service. Localize: this is a placeholder, and the program knows its own.
+    dutyHoursPerWeek: 60,
+    dutyWeeksPerYear: 48, // 52 less four weeks of vacation
     fractionOnAnesthesia: 0.3,
-    anesthesiaCoverageFte: 0.3,
+    anesthesiaProductivityPerHour: 0.22,
     offServiceCoverageFte: 0.55,
     offServiceProviderAnnualCost: 150_000,
   },
@@ -198,8 +206,10 @@ export const DEFAULT_CLINICAL: Record<ResidencyYear, ResidentYearClinicalParams>
     // Away time is subspecialty months the sponsor cannot staff itself.
     sponsorSiteShare: 0.85,
     imeCountableShare: 0.95,
+    dutyHoursPerWeek: 60,
+    dutyWeeksPerYear: 48,
     fractionOnAnesthesia: 0.92, // composite 0.78
-    anesthesiaCoverageFte: 0.5,
+    anesthesiaProductivityPerHour: 0.36,
     offServiceCoverageFte: 0.4,
     offServiceProviderAnnualCost: 150_000,
   },
@@ -207,8 +217,10 @@ export const DEFAULT_CLINICAL: Record<ResidencyYear, ResidentYearClinicalParams>
     // CA-2: subspecialty rotations, growing independence.
     sponsorSiteShare: 0.85,
     imeCountableShare: 0.95,
+    dutyHoursPerWeek: 60,
+    dutyWeeksPerYear: 48,
     fractionOnAnesthesia: 0.95, // composite 0.81
-    anesthesiaCoverageFte: 0.7,
+    anesthesiaProductivityPerHour: 0.51,
     offServiceCoverageFte: 0.4,
     offServiceProviderAnnualCost: 150_000,
   },
@@ -217,8 +229,10 @@ export const DEFAULT_CLINICAL: Record<ResidencyYear, ResidentYearClinicalParams>
     // class the sponsor keeps closest to home.
     sponsorSiteShare: 0.9,
     imeCountableShare: 0.95,
+    dutyHoursPerWeek: 60,
+    dutyWeeksPerYear: 48,
     fractionOnAnesthesia: 0.95, // composite 0.855
-    anesthesiaCoverageFte: 0.85,
+    anesthesiaProductivityPerHour: 0.61,
     offServiceCoverageFte: 0.4,
     offServiceProviderAnnualCost: 150_000,
   },
@@ -335,7 +349,8 @@ function scaledCoverage(factor: number): Record<ResidencyYear, ResidentYearClini
   for (const year of RESIDENCY_YEARS) {
     out[year] = {
       ...DEFAULT_CLINICAL[year],
-      anesthesiaCoverageFte: DEFAULT_CLINICAL[year].anesthesiaCoverageFte * factor,
+      anesthesiaProductivityPerHour:
+        DEFAULT_CLINICAL[year].anesthesiaProductivityPerHour * factor,
     };
   }
   return out;

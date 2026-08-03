@@ -90,15 +90,31 @@ const amount = (items: { key: string; amount: number }[], key: string): number =
  *   labor line     $3,545,693  ->  $3,965,076   (+11.8%)
  *   NPV            +$3,329,532  ->  +$5,497,855
  *   breakeven          year 7   ->      year 6
+ *
+ * UPDATED AGAIN (resident hours made explicit): coverage is now
+ * hours × site × on-anesthesia × per-hour productivity, rather than a blended
+ * `anesthesiaCoverageFte` that fused hours, per-hour output, and attending
+ * dependence into one unauditable number. This was a RE-EXPRESSION, not a
+ * re-valuation: the per-hour productivity defaults are the values the previous
+ * blended figures already implied at 60 duty hours a week, so the only movement
+ * is rounding those to two decimals — under 1.6% at any level, 0.003% on the
+ * labor line:
+ *
+ *   labor line     $3,965,076  ->  $3,964,963   (−0.003%)
+ *   NPV            +$5,497,855  ->  +$5,502,125
+ *
+ * That the totals barely moved is the point. Any change to the clinical claim
+ * itself — is a CA-3 really 61% of a CRNA per hour? — is now a separate, visible
+ * decision rather than something buried in a composite.
  * ------------------------------------------------------------------------ */
 describe("Frozen default program (P7.3)", () => {
   const r = runModel(DEFAULT_INPUTS);
 
   it("reports the frozen summary", () => {
-    expect(r.summary.nominalCumulativeNet).toBeCloseTo(10_292_215.15, 1);
-    expect(r.summary.npv).toBeCloseTo(5_497_855.49, 1);
+    expect(r.summary.nominalCumulativeNet).toBeCloseTo(10_297_093.59, 1);
+    expect(r.summary.npv).toBeCloseTo(5_502_124.65, 1);
     expect(r.summary.breakevenYear).toBe(6);
-    expect(r.summary.steadyStateAnnualNet).toBeCloseTo(1_951_773.55, 1);
+    expect(r.summary.steadyStateAnnualNet).toBeCloseTo(1_951_482.86, 1);
   });
 
   it("reports the frozen mature year", () => {
@@ -107,15 +123,15 @@ describe("Frozen default program (P7.3)", () => {
 
     expect(amount(r.steadyState.benefits, "dgme")).toBeCloseTo(976_368, 0);
     expect(amount(r.steadyState.benefits, "ime")).toBeCloseTo(1_785_573, 0);
-    expect(amount(r.steadyState.benefits, "labor")).toBeCloseTo(3_965_076, 0);
+    expect(amount(r.steadyState.benefits, "labor")).toBeCloseTo(3_964_963, 0);
     expect(amount(r.steadyState.benefits, "offservice")).toBeCloseTo(257_035, 0);
     expect(amount(r.steadyState.benefits, "retention")).toBeCloseTo(785_592, 0);
 
     expect(amount(r.steadyState.costs, "residentsalary")).toBeCloseTo(2_591_901, 0);
     expect(amount(r.steadyState.costs, "support")).toBeCloseTo(1_368_860, 0);
     expect(amount(r.steadyState.costs, "perresident")).toBeCloseTo(715_473, 0);
-    expect(amount(r.steadyState.costs, "efficiency")).toBeCloseTo(182_303, 0);
-    expect(amount(r.steadyState.costs, "supervision")).toBeCloseTo(959_333, 0);
+    expect(amount(r.steadyState.costs, "efficiency")).toBeCloseTo(182_508, 0);
+    expect(amount(r.steadyState.costs, "supervision")).toBeCloseTo(959_305, 0);
   });
 
   it("keeps line items summing to the reported totals in every year", () => {

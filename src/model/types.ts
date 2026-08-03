@@ -252,20 +252,41 @@ export interface ResidentYearClinicalParams {
    */
   imeCountableShare: number;
   /**
-   * Fraction of SPONSOR-SITE time the resident spends staffing anesthetizing
-   * locations (vs. off-service rotations, vacation, didactics). Conditional on
-   * being at the sponsor hospital: composite anesthesia exposure over the year
-   * is sponsorSiteShare × fractionOnAnesthesia. Intern year is low; CA years
+   * Duty hours per week for this training level. The ACGME caps duty hours at
+   * 80 per week averaged over four weeks; most anesthesiology programs run
+   * well below that ceiling. This is the hours side of the resident-versus-CRNA
+   * comparison, and it is the reason a resident can deliver more location-hours
+   * than a 40-hour CRNA while being individually less productive per hour.
+   */
+  dutyHoursPerWeek: number;
+  /**
+   * Weeks per year the resident is on duty — 52 less vacation. Vacation lives
+   * HERE and nowhere else; fractionOnAnesthesia below divides worked time only.
+   */
+  dutyWeeksPerYear: number;
+  /**
+   * Fraction of WORKED sponsor-site time the resident spends staffing
+   * anesthetizing locations, versus off-service rotations and didactics.
+   * Vacation is not in this figure — it is already out via dutyWeeksPerYear.
+   * Conditional on being at the sponsor hospital. Intern year is low; CA years
    * are high.
    */
   fractionOnAnesthesia: number;
   /**
-   * While delivering anesthesia, the resident's coverage capability expressed
-   * as a fraction of one CRNA/anesthetist FTE's staffed-location coverage.
-   * Ramps with training level (a CA-1 is slower and needs more oversight than
-   * a CA-3). Values above 1 are unusual but permitted.
+   * Anesthesia output per resident duty hour, as a fraction of what a CRNA
+   * produces in one of their hours. Ramps with training level: a CA-1 in a room
+   * is slower and needs more oversight than a CA-3.
+   *
+   * This is deliberately a PER-HOUR figure, not a blended FTE fraction. The old
+   * `anesthesiaCoverageFte` fused three separate claims — how many hours the
+   * resident is in a room, how productive they are per hour, and how much
+   * attending dependence they carry — into a single number nobody could audit.
+   * Hours now live in dutyHoursPerWeek/dutyWeeksPerYear, attending dependence
+   * is priced separately as incremental supervision cost, and what remains here
+   * is one checkable clinical claim: is a CA-3 really about 60% of a CRNA in
+   * the hour they are both standing in a room?
    */
-  anesthesiaCoverageFte: number;
+  anesthesiaProductivityPerHour: number;
   /**
    * Service value delivered to host departments (ICU, medicine, surgery, pain,
    * etc.) during required off-service rotations, as a fraction of a mid-level

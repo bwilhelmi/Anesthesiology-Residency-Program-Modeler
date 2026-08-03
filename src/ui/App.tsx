@@ -5,10 +5,12 @@ import {
   SCENARIOS,
   SCENARIO_LABELS,
   YEAR_LABELS,
+  coverageFteForYear,
   crnaCostOfCoverage,
   effectivePra,
   incrementalSupervisionCostPerLocation,
   runModel,
+  sponsorAnesthesiaHours,
   staffedLocationDemand,
   steadyStateCoverageFte,
   tornado,
@@ -42,7 +44,7 @@ import { currency, number, percent } from "./format";
  * the same commit. Retiring old saves is the honest failure mode; half of a
  * model is worse than a clean reset.
  */
-const STORAGE_KEY = "anesthesia-residency-model-inputs-v4";
+const STORAGE_KEY = "anesthesia-residency-model-inputs-v5";
 
 function loadInitial(): ModelInputs {
   try {
@@ -814,12 +816,44 @@ export function App() {
                   value={inputs.clinical[year].fractionOnAnesthesia}
                   onChange={(v) => patchClinical(year, { fractionOnAnesthesia: v })}
                 />
+                <div className="grid-2">
+                  <NumberField
+                    label="Duty hours / week"
+                    help="ACGME caps duty hours at 80/week averaged over four weeks."
+                    cite={[22]}
+                    value={inputs.clinical[year].dutyHoursPerWeek}
+                    onChange={(v) => patchClinical(year, { dutyHoursPerWeek: v })}
+                    clamp={{ min: 0, max: 80 }}
+                    step={1}
+                  />
+                  <NumberField
+                    label="Duty weeks / year"
+                    help="52 less vacation. Vacation lives here and nowhere else."
+                    value={inputs.clinical[year].dutyWeeksPerYear}
+                    onChange={(v) => patchClinical(year, { dutyWeeksPerYear: v })}
+                    clamp={{ min: 0, max: 52 }}
+                    step={1}
+                  />
+                </div>
                 <SliderField
-                  label="Coverage capability (CRNA-equivalent)"
-                  value={inputs.clinical[year].anesthesiaCoverageFte}
-                  onChange={(v) => patchClinical(year, { anesthesiaCoverageFte: v })}
+                  label="Productivity per duty hour (vs a CRNA hour)"
+                  help="What the resident produces in one of their hours relative to a CRNA in one of theirs. Hours are counted above and attending dependence is priced as supervision cost, so this is one checkable clinical claim on its own."
+                  value={inputs.clinical[year].anesthesiaProductivityPerHour}
+                  onChange={(v) =>
+                    patchClinical(year, { anesthesiaProductivityPerHour: v })
+                  }
                   max={1.2}
                 />
+                <div className="callout">
+                  {number(sponsorAnesthesiaHours(inputs.clinical[year]))} sponsor-site
+                  anesthesia hours × {percent(inputs.clinical[year].anesthesiaProductivityPerHour)}{" "}
+                  ={" "}
+                  <strong>
+                    {number(coverageFteForYear(inputs.clinical[year]) * 2080)} location-hours
+                  </strong>{" "}
+                  a year, or <strong>{number(coverageFteForYear(inputs.clinical[year]), 2)}</strong>{" "}
+                  anesthetist-equivalent FTE.
+                </div>
                 <SliderField
                   label="Off-service coverage (mid-level equivalent)"
                   help="Credited only for off-service time spent at the sponsor hospital."

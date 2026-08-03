@@ -134,11 +134,26 @@ sharply in where the resident's value lands:
   under supervision, with coverage capability ramping from a fraction of a CRNA
   toward near-independent senior coverage.
 
-Where a resident *is* matters as much as what they do. Coverage composes as:
+Where a resident *is*, and for how many hours, matters as much as what they do.
+Coverage composes as:
 
 ```
-coverage = sponsorSiteShare × fractionOnAnesthesia × anesthesiaCoverageFte
+hours    = dutyHoursPerWeek × dutyWeeksPerYear × sponsorSiteShare × fractionOnAnesthesia
+coverage = hours × anesthesiaProductivityPerHour / 2,080
 ```
+
+Each factor answers one question and can be checked on its own. That is a change
+from earlier versions, which fused hours, per-hour output, and attending
+dependence into a single `anesthesiaCoverageFte` — a number that could not be
+audited, because "0.85" might mean *works CRNA hours at 85% productivity* or
+*works 1.6× the hours at 53%*, and those are very different clinical claims.
+
+Stating hours also makes the comparison against a CRNA symmetric: **a resident's
+duty week is materially longer than a CRNA's** (2,880 duty hours a year at the
+defaults, against 1,860 worked CRNA hours), while their output per hour is
+lower. Both facts are now visible instead of silently netted against each other.
+At the defaults the model claims a CA-3 delivers about **61%** of a CRNA's output
+in the hour they both stand in a room — argue with that number directly.
 
 Medicare FTE counts at the hospital where the training occurs, and clinical value
 accrues where the resident is standing — so months at a county hospital or VA
