@@ -30,30 +30,29 @@ import { RegionPicker } from "./components/RegionPicker";
 import { HospitalPicker } from "./components/HospitalPicker";
 import { Bibliography } from "./components/References";
 import { currency, number, percent } from "./format";
+import { restoreInputs } from "./persist";
 
 /**
- * Bumped whenever the input shape changes incompatibly. The restore below is a
- * shallow merge, so a stale payload reinstates an entire top-level object —
- * `salaries`, `gme` — missing whatever fields have been added since, and the
- * defaults for those never apply. That failure is SILENT: the model keeps
- * computing, just without the new term. A v3 save, for instance, carries no
- * crnaWorkedHoursPerPaidFte, so the worked-hours backfill quietly does not
- * apply and the labor benefit reads 11.8% low.
+ * Bump only for a change that makes old saves MEANINGLESS rather than merely
+ * incomplete — a field whose semantics changed under the same name. Additive
+ * changes need no bump: restoreInputs() merges defaults underneath saved values
+ * at every depth, so a payload written before a field existed picks up that
+ * field's default instead of leaving it undefined.
  *
- * ANY new field on a nested input object therefore needs a key bump here, in
- * the same commit. Retiring old saves is the honest failure mode; half of a
- * model is worse than a clean reset.
+ * That robustness is not a nicety. Arithmetic on a missing field yields NaN, and
+ * every figure in this interface descends from these inputs, so one absent
+ * number renders the whole model as "$NaN" with no error and no user-visible
+ * way to recover. See persist.ts.
  */
 const STORAGE_KEY = "anesthesia-residency-model-inputs-v5";
 
 function loadInitial(): ModelInputs {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return { ...DEFAULT_INPUTS, ...JSON.parse(raw) };
+    return restoreInputs(DEFAULT_INPUTS, localStorage.getItem(STORAGE_KEY));
   } catch {
-    /* ignore */
+    // localStorage itself can throw (disabled, quota, privacy mode).
+    return DEFAULT_INPUTS;
   }
-  return DEFAULT_INPUTS;
 }
 
 export function App() {
