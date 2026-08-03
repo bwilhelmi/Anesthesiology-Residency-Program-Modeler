@@ -48,7 +48,7 @@ pre-revenue build-up happen inside the projection, not in your head.
 | **Program leadership & administration** | Program Director and Associate PD protected time at the anesthesiologist rate, coordinator salary, and non-billable faculty teaching effort. |
 | **Per-resident program costs** | Professional liability, the DIO/GMEC/GME-office allocation the ACGME Institutional Requirements oblige, and the fee stack (ERAS/NRMP, ITE, ABA, licenses, certifications). |
 | **Fixed program overhead** | Accreditation fees, recruitment, simulation, resident education funds. |
-| **Teaching efficiency loss** | Lost clinical margin from slower teaching cases, weighted toward junior residents — charged **once**, on the covered locations. |
+| **Teaching efficiency loss** | Lost clinical margin from slower teaching cases, charged **once**, on the covered locations, and weighted per level. Zero for the senior years: a CA-2 or CA-3 runs a room about as efficiently as a CRNA — what differs is the supervision ratio, which is charged separately and in full. |
 | **Startup & accreditation** | Spread across the pre-revenue years, where it is actually spent. |
 | **Participating-site support** | Net affiliation-agreement payments, in either direction. |
 

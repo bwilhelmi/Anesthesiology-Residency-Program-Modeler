@@ -854,6 +854,12 @@ export function App() {
                   anesthetist-equivalent FTE.
                 </div>
                 <SliderField
+                  label="Share of case-slowdown charged to this level"
+                  help="How much slower the room actually runs with this resident in it. Zero for the senior years: a CA-2 or CA-3 runs a room about as efficiently as a CRNA, and what differs — the supervision ratio — is already charged in full in the supervision line."
+                  value={inputs.clinical[year].throughputLossWeight}
+                  onChange={(v) => patchClinical(year, { throughputLossWeight: v })}
+                />
+                <SliderField
                   label="Off-service coverage (mid-level equivalent)"
                   help="Credited only for off-service time spent at the sponsor hospital."
                   value={inputs.clinical[year].offServiceCoverageFte}

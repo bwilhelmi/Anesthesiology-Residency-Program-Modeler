@@ -15,7 +15,6 @@ import {
   countableFteForResident,
   coverageFteForYear,
   incrementalSupervisionCostPerLocation,
-  juniorityWeight,
   laborSubstitutionValue,
   loaded,
   offServiceValue,
@@ -180,7 +179,7 @@ export function computeYear(
       coveredLocations *
       inputs.efficiency.annualMarginPerStaffedLocation *
       inputs.efficiency.caseThroughputLoss *
-      juniorityWeight(year);
+      Math.max(0, params.throughputLossWeight);
     offService += n * offServiceValue(params);
   }
 

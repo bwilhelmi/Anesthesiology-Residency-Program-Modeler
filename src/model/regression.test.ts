@@ -128,15 +128,31 @@ const amount = (items: { key: string; amount: number }[], key: string): number =
  * stating: at 90% output across ~1.55x a CRNA's worked hours, one CA-3 displaces
  * MORE than one CRNA FTE (1.065); and PGY-1 is now the only level still carrying
  * a v1 placeholder (0.22), tolerable solely because it is under 3% of the line.
+ *
+ * UPDATED AGAIN (senior throughput weight): the same assumption was still alive
+ * in a second place. juniorityWeight() was a HARDCODED function — never a user
+ * input, in violation of the model's own rule — charging a CA-2 room 60% and a
+ * CA-3 room 30% of the case-slowdown penalty. But a senior resident runs the
+ * room about as efficiently as a CRNA; what differs is the supervision ratio,
+ * and that is charged in full and separately. The weight is now a per-level
+ * input, zero for both senior years:
+ *
+ *   throughput loss line  $317,269  ->  $149,870
+ *   NPV            +$15,345,325  ->  +$16,181,672
+ *
+ * Worth noticing HOW this one was found. The productivity revaluation two
+ * commits ago fixed the visible instance of "residents are slower than CRNAs".
+ * This was the same belief hiding in a different input, and it survived because
+ * it was hardcoded where no reviewer would look for an assumption.
  * ------------------------------------------------------------------------ */
 describe("Frozen default program (P7.3)", () => {
   const r = runModel(DEFAULT_INPUTS);
 
   it("reports the frozen summary", () => {
-    expect(r.summary.nominalCumulativeNet).toBeCloseTo(25_500_492.65, 1);
-    expect(r.summary.npv).toBeCloseTo(15_345_325.07, 1);
+    expect(r.summary.nominalCumulativeNet).toBeCloseTo(26_805_394.37, 1);
+    expect(r.summary.npv).toBeCloseTo(16_181_672.13, 1);
     expect(r.summary.breakevenYear).toBe(4);
-    expect(r.summary.steadyStateAnnualNet).toBeCloseTo(3_819_306.74, 1);
+    expect(r.summary.steadyStateAnnualNet).toBeCloseTo(3_986_705.99, 1);
   });
 
   it("reports the frozen mature year", () => {
@@ -152,7 +168,7 @@ describe("Frozen default program (P7.3)", () => {
     expect(amount(r.steadyState.costs, "residentsalary")).toBeCloseTo(2_591_901, 0);
     expect(amount(r.steadyState.costs, "support")).toBeCloseTo(1_368_860, 0);
     expect(amount(r.steadyState.costs, "perresident")).toBeCloseTo(715_473, 0);
-    expect(amount(r.steadyState.costs, "efficiency")).toBeCloseTo(317_269, 0);
+    expect(amount(r.steadyState.costs, "efficiency")).toBeCloseTo(149_870, 0);
     expect(amount(r.steadyState.costs, "supervision")).toBeCloseTo(1_598_463, 0);
   });
 

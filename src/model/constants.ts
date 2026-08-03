@@ -204,6 +204,8 @@ export const DEFAULT_CLINICAL: Record<ResidencyYear, ResidentYearClinicalParams>
     dutyWeeksPerYear: 48, // 52 less four weeks of vacation
     fractionOnAnesthesia: 0.3,
     anesthesiaProductivityPerHour: 0.22,
+    // A brand-new intern genuinely slows the room they are in.
+    throughputLossWeight: 1.0,
     offServiceCoverageFte: 0.55,
     offServiceProviderAnnualCost: 150_000,
   },
@@ -220,6 +222,8 @@ export const DEFAULT_CLINICAL: Record<ResidencyYear, ResidentYearClinicalParams>
     // like the 0.36 carried over from v1, which was really a supervision cost
     // wearing a productivity label.
     anesthesiaProductivityPerHour: 0.7,
+    // Still true of a CA-1: teaching in the room costs case time.
+    throughputLossWeight: 1.0,
     offServiceCoverageFte: 0.4,
     offServiceProviderAnnualCost: 150_000,
   },
@@ -237,6 +241,9 @@ export const DEFAULT_CLINICAL: Record<ResidencyYear, ResidentYearClinicalParams>
     // directed CRNA room. Discounting their hourly output as well would charge
     // the same effect twice.
     anesthesiaProductivityPerHour: 0.9,
+    // A CA-2 runs the room about as efficiently as a CRNA. The cost of using
+    // them is the supervision ratio, charged separately and in full.
+    throughputLossWeight: 0,
     offServiceCoverageFte: 0.4,
     offServiceProviderAnnualCost: 150_000,
   },
@@ -251,6 +258,8 @@ export const DEFAULT_CLINICAL: Record<ResidencyYear, ResidentYearClinicalParams>
     // Same judgment as the CA-2 above: near-independent in the room, with the
     // real cost sitting in the supervision line rather than in throughput.
     anesthesiaProductivityPerHour: 0.9,
+    // As the CA-2 above: no slowdown to charge on a CA-3 room.
+    throughputLossWeight: 0,
     offServiceCoverageFte: 0.4,
     offServiceProviderAnnualCost: 150_000,
   },

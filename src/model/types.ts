@@ -288,6 +288,22 @@ export interface ResidentYearClinicalParams {
    */
   anesthesiaProductivityPerHour: number;
   /**
+   * Share of `caseThroughputLoss` charged against this level's covered rooms —
+   * how much SLOWER the operating room actually runs with this resident in it.
+   *
+   * This is a different question from productivity per hour, which asks how
+   * much of a room they can staff. A room can be fully staffed and still turn
+   * over more slowly while the attending teaches in it.
+   *
+   * For the senior years the honest answer is: it does not. A CA-2 or CA-3
+   * delivering anesthesia care runs a room about as efficiently as a CRNA does.
+   * What differs is the SUPERVISION RATIO — an attending covers two teaching
+   * rooms where they would medically direct three CRNA rooms — and that cost is
+   * charged in full, separately, in the supervision line. Charging senior rooms
+   * for slowness on top of it prices the same staffing model twice.
+   */
+  throughputLossWeight: number;
+  /**
    * Service value delivered to host departments (ICU, medicine, surgery, pain,
    * etc.) during required off-service rotations, as a fraction of a mid-level
    * provider (e.g., hospitalist/PA) FTE. Mostly relevant for the intern year.

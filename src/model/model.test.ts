@@ -25,7 +25,6 @@ import {
   residentAnnualDutyHours,
   sponsorAnesthesiaHours,
   incrementalSupervisionCostPerLocation,
-  juniorityWeight,
   laborSubstitutionValue,
   loaded,
   offServiceValue,
@@ -653,7 +652,7 @@ describe("Throughput loss is charged once (P0.2)", () => {
     expect(r.costs.find((c) => c.key === "efficiency")!.amount).toBe(0);
   });
 
-  it("charges the loss only through the margin line, weighted by juniority", () => {
+  it("charges the loss only through the margin line, weighted per level", () => {
     const inputs: ModelInputs = { ...DEFAULT_INPUTS, residentsPerClass: 4 };
     const cohort = residentsInProgramYear(inputs, 4);
     const r = computeYear(inputs, 4, cohort);
@@ -665,7 +664,7 @@ describe("Throughput loss is charged once (P0.2)", () => {
           coverageFteForYear(p) *
           inputs.efficiency.annualMarginPerStaffedLocation *
           inputs.efficiency.caseThroughputLoss *
-          juniorityWeight(y)
+          p.throughputLossWeight
       );
     }, 0);
     expect(r.costs.find((c) => c.key === "efficiency")!.amount).toBeCloseTo(expected, 6);

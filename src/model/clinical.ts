@@ -40,24 +40,6 @@ export function loaded(baseSalary: number, benefitLoadRate: number): number {
   return baseSalary * (1 + benefitLoadRate);
 }
 
-/**
- * Juniority weight in [0,1] applied to the teaching throughput loss: junior
- * residents (CA-1) slow cases more than senior residents (CA-3). PGY1 carries
- * the full loss on its (small) anesthesia exposure.
- */
-export function juniorityWeight(year: ResidencyYear): number {
-  switch (year) {
-    case "PGY1":
-      return 1.0;
-    case "PGY2":
-      return 1.0;
-    case "PGY3":
-      return 0.6;
-    case "PGY4":
-      return 0.3;
-  }
-}
-
 /** Duty hours one resident at this level works in a year, net of vacation. */
 export function residentAnnualDutyHours(params: ResidentYearClinicalParams): number {
   return Math.max(0, params.dutyHoursPerWeek) * Math.max(0, params.dutyWeeksPerYear);
