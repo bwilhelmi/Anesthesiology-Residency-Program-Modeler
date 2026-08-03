@@ -173,14 +173,21 @@ export const DEFAULT_SALARIES = {
  * locations with less oversight.
  *
  * `anesthesiaProductivityPerHour` is what a resident produces in one duty hour
- * relative to a CRNA in one of theirs. The defaults are the values ALREADY
- * IMPLIED by the previous blended coverage figures at 60 duty hours a week —
- * this was a re-expression, not a re-valuation, so that any change in the
- * clinical claim is a separate and visible decision. Judge them directly: is a
- * CA-3 really about 60% of a CRNA in the hour they both stand in a room?
+ * relative to a CRNA in one of theirs.
  *
- * The separate `caseThroughputLoss` input values the hospital's lost case
- * margin and is not applied here — see EfficiencyInputs.
+ * PROVENANCE DIFFERS BY LEVEL, and that is worth knowing before trusting any of
+ * them. PGY-1 and PGY-2 are carried over arithmetically from v1's blended
+ * coverage figures, which were themselves national ballpark placeholders — weak
+ * numbers, but they drive only ~26% of the labor line between them. PGY-3 and
+ * PGY-4 are a deliberate clinical judgment: a CA-2 or CA-3 actually delivering
+ * anesthesia care is worth about 90% of a CRNA in that hour, and the cost of
+ * using them instead is supervision, not lost output.
+ *
+ * That distinction matters structurally. Attending dependence is already charged
+ * in full as incremental supervision cost, and teaching slowdown is already
+ * charged as juniority-weighted margin loss via `caseThroughputLoss`. Marking a
+ * senior resident down on output as well would charge one effect through three
+ * channels — the error P0.2 existed to remove.
  */
 export const DEFAULT_CLINICAL: Record<ResidencyYear, ResidentYearClinicalParams> = {
   PGY1: {
@@ -220,7 +227,13 @@ export const DEFAULT_CLINICAL: Record<ResidencyYear, ResidentYearClinicalParams>
     dutyHoursPerWeek: 60,
     dutyWeeksPerYear: 48,
     fractionOnAnesthesia: 0.95, // composite 0.81
-    anesthesiaProductivityPerHour: 0.51,
+    // Clinical judgment, not derived: a CA-2 delivering anesthesia care is
+    // worth about 90% of a CRNA in that hour. The economic cost of using a
+    // resident instead is SUPERVISION — priced separately, and in full, as the
+    // incremental attending time a 1:2 teaching room consumes over a medically
+    // directed CRNA room. Discounting their hourly output as well would charge
+    // the same effect twice.
+    anesthesiaProductivityPerHour: 0.9,
     offServiceCoverageFte: 0.4,
     offServiceProviderAnnualCost: 150_000,
   },
@@ -232,7 +245,9 @@ export const DEFAULT_CLINICAL: Record<ResidencyYear, ResidentYearClinicalParams>
     dutyHoursPerWeek: 60,
     dutyWeeksPerYear: 48,
     fractionOnAnesthesia: 0.95, // composite 0.855
-    anesthesiaProductivityPerHour: 0.61,
+    // Same judgment as the CA-2 above: near-independent in the room, with the
+    // real cost sitting in the supervision line rather than in throughput.
+    anesthesiaProductivityPerHour: 0.9,
     offServiceCoverageFte: 0.4,
     offServiceProviderAnnualCost: 150_000,
   },

@@ -111,10 +111,10 @@ describe("Frozen default program (P7.3)", () => {
   const r = runModel(DEFAULT_INPUTS);
 
   it("reports the frozen summary", () => {
-    expect(r.summary.nominalCumulativeNet).toBeCloseTo(10_297_093.59, 1);
-    expect(r.summary.npv).toBeCloseTo(5_502_124.65, 1);
-    expect(r.summary.breakevenYear).toBe(6);
-    expect(r.summary.steadyStateAnnualNet).toBeCloseTo(1_951_482.86, 1);
+    expect(r.summary.nominalCumulativeNet).toBeCloseTo(20_204_859.15, 1);
+    expect(r.summary.npv).toBeCloseTo(11_824_783.34, 1);
+    expect(r.summary.breakevenYear).toBe(5);
+    expect(r.summary.steadyStateAnnualNet).toBeCloseTo(3_232_673.43, 1);
   });
 
   it("reports the frozen mature year", () => {
@@ -123,15 +123,15 @@ describe("Frozen default program (P7.3)", () => {
 
     expect(amount(r.steadyState.benefits, "dgme")).toBeCloseTo(976_368, 0);
     expect(amount(r.steadyState.benefits, "ime")).toBeCloseTo(1_785_573, 0);
-    expect(amount(r.steadyState.benefits, "labor")).toBeCloseTo(3_964_963, 0);
+    expect(amount(r.steadyState.benefits, "labor")).toBeCloseTo(5_742_377, 0);
     expect(amount(r.steadyState.benefits, "offservice")).toBeCloseTo(257_035, 0);
     expect(amount(r.steadyState.benefits, "retention")).toBeCloseTo(785_592, 0);
 
     expect(amount(r.steadyState.costs, "residentsalary")).toBeCloseTo(2_591_901, 0);
     expect(amount(r.steadyState.costs, "support")).toBeCloseTo(1_368_860, 0);
     expect(amount(r.steadyState.costs, "perresident")).toBeCloseTo(715_473, 0);
-    expect(amount(r.steadyState.costs, "efficiency")).toBeCloseTo(182_508, 0);
-    expect(amount(r.steadyState.costs, "supervision")).toBeCloseTo(959_305, 0);
+    expect(amount(r.steadyState.costs, "efficiency")).toBeCloseTo(248_694, 0);
+    expect(amount(r.steadyState.costs, "supervision")).toBeCloseTo(1_389_343, 0);
   });
 
   it("keeps line items summing to the reported totals in every year", () => {
@@ -214,14 +214,15 @@ describe("Property: NPV is non-increasing in the discount rate", () => {
   });
 
   it("inverts for a program that never turns a profit — as it should", () => {
-    // A hospital with 8 FTE of headroom training 24 residents loses money in
-    // every single year. Discounting a stream of pure losses makes NPV LESS
-    // negative, so a higher hurdle rate flatters it. That is arithmetic, not a
-    // bug, and it is exactly why NPV alone is a poor way to read this model —
-    // the breakeven year and the year table say what NPV cannot.
+    // A hospital at its cap with no awarded slots earns no DGME or IME at all;
+    // switch retention off too and it loses money in every single year.
+    // Discounting a stream of pure losses makes NPV LESS negative, so a higher
+    // hurdle rate flatters it. That is arithmetic, not a bug, and it is exactly
+    // why NPV alone is a poor way to read this model — the breakeven year and
+    // the year table say what NPV cannot.
     const alwaysLosing: ModelInputs = {
       ...DEFAULT_INPUTS,
-      gme: { ...DEFAULT_INPUTS.gme, scenario: "existingUnderCap", capHeadroomFte: 8 },
+      gme: { ...DEFAULT_INPUTS.gme, scenario: "atCap", awardedNewSlots: 0 },
       retention: { ...DEFAULT_INPUTS.retention, enabled: false },
     };
     const years = runModel(alwaysLosing).years;

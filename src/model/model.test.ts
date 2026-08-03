@@ -343,9 +343,9 @@ describe("Clinical value", () => {
     );
   });
 
-  it("labor substitution value scales with loaded CRNA cost", () => {
+  it("labor substitution value scales with the cost of the coverage displaced", () => {
     const val = laborSubstitutionValue(
-      DEFAULT_INPUTS.clinical.PGY4,
+      DEFAULT_INPUTS.clinical.PGY2,
       DEFAULT_INPUTS.salaries
     );
     expect(val).toBeGreaterThan(0);
@@ -398,22 +398,42 @@ describe("Resident hours (explicit)", () => {
     expect(coverageFteForYear(params)).toBeCloseTo(1, 10);
   });
 
-  it("is value-neutral against the blended figures it replaced", () => {
-    // The per-hour defaults were derived from the old blended coverage values
-    // at 60 duty hours a week, so each level should land within rounding of
-    // where it was. This test is what makes "re-expression, not re-valuation"
-    // an enforceable claim rather than an assertion in a commit message.
-    const previouslyImplied: Record<string, number> = {
-      PGY1: 0.045,
-      PGY2: 0.391,
-      PGY3: 0.56525,
-      PGY4: 0.72675,
-    };
-    for (const year of RESIDENCY_YEARS) {
-      const now = coverageFteForYear(DEFAULT_INPUTS.clinical[year]);
-      const before = previouslyImplied[year];
+  it("keeps the junior levels value-neutral against the blended figures they replaced", () => {
+    // PGY-1 and PGY-2 were carried over arithmetically from v1's blended
+    // coverage values at 60 duty hours a week, and nothing since has revalued
+    // them — so they should still land within rounding of where they were.
+    // This is what keeps "re-expression" an enforceable claim for the levels it
+    // still applies to. The senior levels were revalued deliberately; see below.
+    const previouslyImplied: Record<string, number> = { PGY1: 0.045, PGY2: 0.391 };
+    for (const [year, before] of Object.entries(previouslyImplied)) {
+      const now = coverageFteForYear(
+        DEFAULT_INPUTS.clinical[year as keyof typeof DEFAULT_INPUTS.clinical]
+      );
       expect(Math.abs(now / before - 1)).toBeLessThan(0.02);
     }
+  });
+
+  it("pins the per-hour productivity claims, so changing one is deliberate", () => {
+    // Provenance differs, and the difference matters when judging them:
+    //   PGY-1 / PGY-2  derived from v1's blended placeholders (weak numbers,
+    //                  but only ~26% of the labor line between them)
+    //   PGY-3 / PGY-4  clinical judgment — a CA-2 or CA-3 delivering anesthesia
+    //                  care is worth ~90% of a CRNA in that hour, with the cost
+    //                  of using them sitting in the supervision line instead
+    expect(DEFAULT_INPUTS.clinical.PGY1.anesthesiaProductivityPerHour).toBe(0.22);
+    expect(DEFAULT_INPUTS.clinical.PGY2.anesthesiaProductivityPerHour).toBe(0.36);
+    expect(DEFAULT_INPUTS.clinical.PGY3.anesthesiaProductivityPerHour).toBe(0.9);
+    expect(DEFAULT_INPUTS.clinical.PGY4.anesthesiaProductivityPerHour).toBe(0.9);
+  });
+
+  it("has a senior resident exceed one anesthetist FTE, on hours alone", () => {
+    // Worth stating out loud, because it is the kind of headline that draws
+    // fire: at 90% of a CRNA's hourly output but ~1.55x their worked hours, one
+    // CA-3 displaces MORE than one CRNA FTE of coverage. That follows from the
+    // two inputs; it is not an extra assumption layered on top.
+    const ca3 = coverageFteForYear(DEFAULT_INPUTS.clinical.PGY4);
+    expect(ca3).toBeGreaterThan(1);
+    expect(ca3).toBeLessThan(1.2);
   });
 
   it("shows a duty week materially longer than a CRNA's", () => {
