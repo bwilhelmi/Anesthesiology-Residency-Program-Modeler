@@ -106,15 +106,37 @@ const amount = (items: { key: string; amount: number }[], key: string): number =
  * That the totals barely moved is the point. Any change to the clinical claim
  * itself — is a CA-3 really 61% of a CRNA per hour? — is now a separate, visible
  * decision rather than something buried in a composite.
+ *
+ * UPDATED AGAIN (per-hour productivity revalued): that question was put to an
+ * anesthesiologist and answered. A resident actually delivering anesthesia care
+ * is worth far more per hour than the figures inherited from v1 implied — a CA-1
+ * about 70% of a CRNA, a CA-2 or CA-3 about 90%. What using a resident costs the
+ * department is SUPERVISION, which the model already charges in full and
+ * separately, plus juniority-weighted margin loss. Marking their hourly output
+ * down as well charged one effect through three channels — the error P0.2
+ * existed to remove, reappearing in a different input.
+ *
+ *   PGY-2  0.36 -> 0.70      PGY-3  0.51 -> 0.90      PGY-4  0.61 -> 0.90
+ *
+ *   labor line     $3,964,963  ->  $6,606,706   (+66.6%)
+ *   NPV            +$5,502,125  ->  +$15,345,325
+ *   breakeven          year 6   ->      year 4
+ *
+ * This is by far the largest input change in the model's history, and it rests
+ * on one clinician's judgment rather than on arithmetic. It should be the first
+ * number a skeptical reviewer is pointed at, not buried. Two consequences worth
+ * stating: at 90% output across ~1.55x a CRNA's worked hours, one CA-3 displaces
+ * MORE than one CRNA FTE (1.065); and PGY-1 is now the only level still carrying
+ * a v1 placeholder (0.22), tolerable solely because it is under 3% of the line.
  * ------------------------------------------------------------------------ */
 describe("Frozen default program (P7.3)", () => {
   const r = runModel(DEFAULT_INPUTS);
 
   it("reports the frozen summary", () => {
-    expect(r.summary.nominalCumulativeNet).toBeCloseTo(20_204_859.15, 1);
-    expect(r.summary.npv).toBeCloseTo(11_824_783.34, 1);
-    expect(r.summary.breakevenYear).toBe(5);
-    expect(r.summary.steadyStateAnnualNet).toBeCloseTo(3_232_673.43, 1);
+    expect(r.summary.nominalCumulativeNet).toBeCloseTo(25_500_492.65, 1);
+    expect(r.summary.npv).toBeCloseTo(15_345_325.07, 1);
+    expect(r.summary.breakevenYear).toBe(4);
+    expect(r.summary.steadyStateAnnualNet).toBeCloseTo(3_819_306.74, 1);
   });
 
   it("reports the frozen mature year", () => {
@@ -123,15 +145,15 @@ describe("Frozen default program (P7.3)", () => {
 
     expect(amount(r.steadyState.benefits, "dgme")).toBeCloseTo(976_368, 0);
     expect(amount(r.steadyState.benefits, "ime")).toBeCloseTo(1_785_573, 0);
-    expect(amount(r.steadyState.benefits, "labor")).toBeCloseTo(5_742_377, 0);
+    expect(amount(r.steadyState.benefits, "labor")).toBeCloseTo(6_606_706, 0);
     expect(amount(r.steadyState.benefits, "offservice")).toBeCloseTo(257_035, 0);
     expect(amount(r.steadyState.benefits, "retention")).toBeCloseTo(785_592, 0);
 
     expect(amount(r.steadyState.costs, "residentsalary")).toBeCloseTo(2_591_901, 0);
     expect(amount(r.steadyState.costs, "support")).toBeCloseTo(1_368_860, 0);
     expect(amount(r.steadyState.costs, "perresident")).toBeCloseTo(715_473, 0);
-    expect(amount(r.steadyState.costs, "efficiency")).toBeCloseTo(248_694, 0);
-    expect(amount(r.steadyState.costs, "supervision")).toBeCloseTo(1_389_343, 0);
+    expect(amount(r.steadyState.costs, "efficiency")).toBeCloseTo(317_269, 0);
+    expect(amount(r.steadyState.costs, "supervision")).toBeCloseTo(1_598_463, 0);
   });
 
   it("keeps line items summing to the reported totals in every year", () => {
@@ -214,14 +236,16 @@ describe("Property: NPV is non-increasing in the discount rate", () => {
   });
 
   it("inverts for a program that never turns a profit — as it should", () => {
-    // A hospital at its cap with no awarded slots earns no DGME or IME at all;
-    // switch retention off too and it loses money in every single year.
-    // Discounting a stream of pure losses makes NPV LESS negative, so a higher
-    // hurdle rate flatters it. That is arithmetic, not a bug, and it is exactly
-    // why NPV alone is a poor way to read this model — the breakeven year and
-    // the year table say what NPV cannot.
+    // A hospital running two anesthetizing locations, at its cap with no awarded
+    // slots and no retention credit: there is almost no coverage demand for the
+    // residents to fill, no Medicare money behind them, and it loses money in
+    // every single year. Discounting a stream of pure losses makes NPV LESS
+    // negative, so a higher hurdle rate flatters it. That is arithmetic, not a
+    // bug, and it is exactly why NPV alone is a poor way to read this model —
+    // the breakeven year and the year table say what NPV cannot.
     const alwaysLosing: ModelInputs = {
       ...DEFAULT_INPUTS,
+      locations: { ...DEFAULT_INPUTS.locations, averageConcurrentStaffedLocations: 2 },
       gme: { ...DEFAULT_INPUTS.gme, scenario: "atCap", awardedNewSlots: 0 },
       retention: { ...DEFAULT_INPUTS.retention, enabled: false },
     };

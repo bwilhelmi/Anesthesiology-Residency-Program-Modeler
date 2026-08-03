@@ -176,12 +176,11 @@ export const DEFAULT_SALARIES = {
  * relative to a CRNA in one of theirs.
  *
  * PROVENANCE DIFFERS BY LEVEL, and that is worth knowing before trusting any of
- * them. PGY-1 and PGY-2 are carried over arithmetically from v1's blended
- * coverage figures, which were themselves national ballpark placeholders — weak
- * numbers, but they drive only ~26% of the labor line between them. PGY-3 and
- * PGY-4 are a deliberate clinical judgment: a CA-2 or CA-3 actually delivering
- * anesthesia care is worth about 90% of a CRNA in that hour, and the cost of
- * using them instead is supervision, not lost output.
+ * them. PGY-2 through PGY-4 are deliberate clinical judgments: a CA-1 is worth
+ * about 70% of a CRNA hour and a CA-2 or CA-3 about 90%, with the cost of using
+ * a resident sitting in supervision rather than in lost output. PGY-1 alone is
+ * still carried over arithmetically from v1's blended placeholder — a weak
+ * number, but under 3% of the labor line, so it can stay unexamined cheaply.
  *
  * That distinction matters structurally. Attending dependence is already charged
  * in full as incremental supervision cost, and teaching slowdown is already
@@ -216,7 +215,11 @@ export const DEFAULT_CLINICAL: Record<ResidencyYear, ResidentYearClinicalParams>
     dutyHoursPerWeek: 60,
     dutyWeeksPerYear: 48,
     fractionOnAnesthesia: 0.92, // composite 0.78
-    anesthesiaProductivityPerHour: 0.36,
+    // Clinical judgment: a CA-1 in the room is worth about 70% of a CRNA hour.
+    // Below the senior levels — they are still learning the craft — but nothing
+    // like the 0.36 carried over from v1, which was really a supervision cost
+    // wearing a productivity label.
+    anesthesiaProductivityPerHour: 0.7,
     offServiceCoverageFte: 0.4,
     offServiceProviderAnnualCost: 150_000,
   },
