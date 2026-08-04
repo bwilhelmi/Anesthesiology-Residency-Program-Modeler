@@ -248,6 +248,25 @@ a resident room costs on top of it.
 At 1:2 the cost vanishes entirely — the resident room ties up no more attending
 time than the CRNA room it replaced.
 
+### Whose number is this?
+
+When the sponsoring unit is an affiliated group, the model reports the group's
+**combined** return. It holds one cap, one per-resident amount, one bed count
+and one IME base, so with several member providers those fields stand in for all
+of them, and the output raises a warning saying so.
+
+Splitting the result between members is not something the model can infer. It
+needs two documents, and they live in different places:
+
+| what | where |
+| --- | --- |
+| FTE cap slots each member contributes | the **Medicare GME affiliation agreement**, which must be in writing and filed with the MAC each year under 42 CFR 413.79(f) |
+| how the program's costs are divided | the **institutional affiliation / participation agreements** between the member hospitals, usually held by the GME office or the DIO |
+
+Until those numbers are in hand, read the headline as the alliance's, not any
+one hospital's — and do not put it in front of a single member's board as
+theirs.
+
 **Scope note.** The slider stops at 1:4 and does not model independent CRNA
 practice. That is deliberate rather than an oversight: independent practice is
 uncommon at the tertiary centers that sponsor anesthesiology residencies, which

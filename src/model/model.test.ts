@@ -720,7 +720,12 @@ describe("Coverage cannot exceed staffed-location demand (P0.3)", () => {
   });
 
   it("stays silent when coverage fits inside demand", () => {
-    expect(runModel(DEFAULT_INPUTS).warnings).toEqual([]);
+    // The defaults do raise the affiliated-group notice, which is about who the
+    // figures belong to rather than about the demand cap.
+    const capWarnings = runModel(DEFAULT_INPUTS).warnings.filter((w) =>
+      /staffed anesthetizing locations/.test(w)
+    );
+    expect(capWarnings).toEqual([]);
   });
 });
 

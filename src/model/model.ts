@@ -30,7 +30,7 @@ import {
   TEACHING_ANESTHESIA_CONCURRENCY_LIMIT,
 } from "./constants";
 import { gmeFundingTimeline, medicaidGme } from "./gme";
-import { applyScheduleToClinical, scheduleWarnings } from "./schedule";
+import { allianceProviders, applyScheduleToClinical, scheduleWarnings } from "./schedule";
 import type { GmeYearFte, GmeYearFunding } from "./gme";
 import {
   annualProgramSupportCost,
@@ -609,6 +609,7 @@ export function runModel(rawInputs: ModelInputs): ModelResult {
     warnings: dedupe([
       ...years.flatMap((y) => y.warnings),
       ...scheduleWarnings(inputs.blockSchedule),
+      ...allianceWarnings(inputs),
     ]),
   };
 }
@@ -663,6 +664,31 @@ export function steadyStateCoverageFte(rawInputs: ModelInputs): number {
 
 function sum(xs: number[]): number {
   return xs.reduce((a, b) => a + b, 0);
+}
+
+/**
+ * Say plainly when the figures belong to a group rather than to a hospital.
+ *
+ * A Medicare GME affiliated group pools cap room across members and divides the
+ * program's costs between them (42 CFR 413.79(f)). This model holds ONE cap,
+ * ONE per-resident amount, ONE bed count and ONE IME base, so when a schedule
+ * spans several member providers those fields are standing in for all of them
+ * and the result is the group's combined return. Allocating it between members
+ * needs the affiliation agreement, which the model does not have and must not
+ * invent.
+ */
+function allianceWarnings(inputs: ModelInputs): string[] {
+  const providers = allianceProviders(inputs.blockSchedule);
+  if (providers.length < 2) return [];
+  return [
+    `This program is sponsored by an affiliated group of ${providers.length} Medicare ` +
+      `providers (CCNs ${providers.join(", ")}), which pool cap room and divide costs ` +
+      `between them. Every figure here is therefore the COMBINED return to the group, ` +
+      `not any one member's: the cap, per-resident amount, bed count and IME base are ` +
+      `single-provider fields standing in for several. Splitting this between members ` +
+      `requires the Medicare GME affiliation agreement and the institutional ` +
+      `cost-sharing terms — the model cannot infer either.`,
+  ];
 }
 
 /** De-duplicate strings, preserving first-seen order. */

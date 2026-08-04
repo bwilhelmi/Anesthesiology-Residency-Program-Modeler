@@ -413,3 +413,24 @@ export function applyScheduleToClinical<
   }
   return { ...inputs, clinical };
 }
+
+/* ---------------------------- Alliance membership ------------------------- */
+
+/**
+ * The distinct Medicare providers inside the sponsoring group that this
+ * schedule actually uses, by CCN.
+ *
+ * More than one means the model is pricing an AFFILIATED GROUP rather than a
+ * hospital, and every Medicare input it holds — cap, per-resident amount, bed
+ * count, IME base — is a single-provider field standing in for several.
+ */
+export function allianceProviders(schedule: BlockSchedule): string[] {
+  const ccns = new Set<string>();
+  for (const year of RESIDENCY_YEARS) {
+    for (const block of schedule[year] ?? []) {
+      const s = site(block.siteId);
+      if (s?.inAlliance && s.ccn) ccns.add(s.ccn);
+    }
+  }
+  return [...ccns].sort();
+}

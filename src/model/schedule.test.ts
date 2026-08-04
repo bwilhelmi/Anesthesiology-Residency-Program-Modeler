@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { DEFAULT_BLOCK_SCHEDULE, DEFAULT_INPUTS } from "./constants";
 import {
   BLOCKS_PER_YEAR,
+  allianceProviders,
   applyScheduleToClinical,
   blk,
   deriveSchedule,
@@ -155,5 +156,38 @@ describe("The schedule overrides asserted fractions", () => {
     // Not a suggestion that they should — the rotations are accreditation
     // requirements. It is the size of what the sponsor is funding and not
     // receiving, which is the question the block diagram exists to answer.
+  });
+});
+
+describe("Affiliated group", () => {
+  it("names the member providers the schedule actually uses", () => {
+    // Valleywise (030253) and St. Joseph's (039598). Phoenix Children's is
+    // outside the alliance and Peoria shares Valleywise's CCN, so neither adds
+    // a provider.
+    expect(allianceProviders(DEFAULT_BLOCK_SCHEDULE)).toEqual(["030253", "039598"]);
+  });
+
+  it("says the figures belong to the group, not to a member", () => {
+    const warning = runModel(DEFAULT_INPUTS).warnings.find((w) =>
+      /affiliated group/.test(w)
+    );
+    expect(warning).toBeDefined();
+    expect(warning).toContain("030253");
+    expect(warning).toContain("039598");
+  });
+
+  it("stays quiet for a single-provider program", () => {
+    const onlyValleywise = Object.fromEntries(
+      RESIDENCY_YEARS.map((year) => [
+        year,
+        Array.from({ length: BLOCKS_PER_YEAR }, () => blk("anes", "site1", 0.2)),
+      ])
+    ) as typeof DEFAULT_BLOCK_SCHEDULE;
+    expect(allianceProviders(onlyValleywise)).toEqual(["030253"]);
+    expect(
+      runModel({ ...DEFAULT_INPUTS, blockSchedule: onlyValleywise }).warnings.some((w) =>
+        /affiliated group/.test(w)
+      )
+    ).toBe(false);
   });
 });
