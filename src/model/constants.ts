@@ -13,6 +13,7 @@ import type {
   ResidentYearClinicalParams,
 } from "./types";
 import { RESIDENCY_YEARS } from "./types";
+import { blk, type BlockSchedule } from "./schedule";
 
 /* --------------------------- CMS / IME constants -------------------------- */
 
@@ -265,6 +266,93 @@ export const DEFAULT_CLINICAL: Record<ResidencyYear, ResidentYearClinicalParams>
   },
 };
 
+/* ---------------------------- Block schedule ------------------------------ */
+
+/**
+ * The program's actual four-year block diagram (Creighton University SOM
+ * Phoenix / Valleywise Health, ACGME v2, 15 Aug 2024): 13 blocks of 4 weeks at
+ * each level, with the site, rotation, outpatient share, and research share as
+ * published.
+ *
+ * This is DATA transcribed from the diagram, not a modeling assumption. The
+ * three clinical fractions are derived from it and nothing else; see
+ * schedule.ts. Percentages come verbatim from the diagram's own "% Outpatient"
+ * and "% Research" rows.
+ *
+ * Two readings are recorded here rather than left implicit:
+ *   - "Site 1/1P/2/2B/3" means the block may be taken at any approved site, so
+ *     it maps to the `elective` site and its localizable sponsor share.
+ *   - "0-100%" outpatient/research on those elective blocks is a range, not a
+ *     figure. It is entered at the midpoint, 0.5, which is a guess — set it to
+ *     what the residents actually do.
+ */
+export const DEFAULT_BLOCK_SCHEDULE: BlockSchedule = {
+  // PGY-1 clinical base year. One anesthesia block; a research block at the end.
+  PGY1: [
+    blk("ccm_sicu", "site1", 0.0),
+    blk("ccm_sicu", "site1", 0.0),
+    blk("em", "site1", 1.0),
+    blk("em", "site1", 1.0),
+    blk("im", "site1", 0.0),
+    blk("gen_surg", "site1", 0.35),
+    blk("anes", "site1", 0.35),
+    blk("cardio", "site1", 0.0),
+    blk("peds", "site1", 0.25),
+    blk("im", "site2", 0.0),
+    blk("gen_surg", "site2", 0.2),
+    blk("neuro_anes", "site2b", 0.9),
+    blk("research", "elective", 0.0, 1.0),
+  ],
+  // CA-1. Eight sponsor blocks, then away for critical care and neuro.
+  PGY2: [
+    blk("preop_pacu", "site1", 0.35),
+    blk("anes", "site1", 0.35),
+    blk("anes", "site1", 0.35),
+    blk("acute_pain_ra", "site1", 0.4),
+    blk("peds_gs_anes", "site1", 0.35),
+    blk("peds_gs_anes", "site1", 0.35),
+    blk("ob_anes", "site1", 0.02),
+    blk("pocus_tee", "site1", 0.2),
+    blk("ccm_sicu", "site2", 0.0),
+    blk("ccm_sicu", "site2", 0.0),
+    blk("neuro_anes", "site2b", 0.05),
+    blk("elect_pto", "elective", 0.5, 0.5),
+    blk("elect_pto", "elective", 0.5, 0.5),
+  ],
+  // CA-2. The subspecialty year, and the one that runs mostly away from home.
+  PGY3: [
+    blk("nora_rs", "site1", 0.9, 0.5),
+    blk("burn_tr", "site1", 0.2),
+    blk("chronic_pain", "site1p", 1.0),
+    blk("ob_anes", "site2", 0.02),
+    blk("ct_anes", "site2", 0.1),
+    blk("ct_vasc", "site2", 0.1),
+    blk("acute_pain_ra", "site2", 0.4),
+    blk("ccm_sicu", "site2", 0.0),
+    blk("ccm_sicu", "site2", 0.0),
+    blk("transpl", "site2", 0.0),
+    blk("neuro_anes", "site2b", 0.05),
+    blk("ped_anes", "site3", 0.35),
+    blk("ped_anes", "site3", 0.35),
+  ],
+  // CA-3. Senior year, and still largely away from the sponsor.
+  PGY4: [
+    blk("pract_mgt", "site1", 0.35),
+    blk("amb_anes", "site1p", 1.0),
+    blk("chronic_pain", "site1p", 1.0),
+    blk("burn_tr", "site2", 0.2),
+    blk("nora_vasc", "site2", 0.9),
+    blk("ct_anes", "site2", 0.1),
+    blk("echo", "site2", 0.0),
+    blk("ob_anes", "site2", 0.02),
+    blk("neuro_anes", "site2b", 0.05),
+    blk("ped_anes", "site3", 0.35),
+    blk("ped_anes", "site3", 0.35),
+    blk("elect_pto", "elective", 0.5, 0.5),
+    blk("elect_pto", "elective", 0.5, 0.5),
+  ],
+};
+
 /* ------------------------------- Full default ----------------------------- */
 
 export const DEFAULT_INPUTS: ModelInputs = {
@@ -366,6 +454,7 @@ export const DEFAULT_INPUTS: ModelInputs = {
     caseThroughputLoss: 0.08,
   },
   clinical: DEFAULT_CLINICAL,
+  blockSchedule: DEFAULT_BLOCK_SCHEDULE,
 };
 
 /* ------------------------------- Scenarios -------------------------------- */

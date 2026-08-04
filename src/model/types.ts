@@ -14,6 +14,8 @@
  * produce a defensible estimate.
  */
 
+import type { BlockSchedule } from "./schedule";
+
 /** The four post-graduate years of a US anesthesiology residency. */
 export type ResidencyYear = "PGY1" | "PGY2" | "PGY3" | "PGY4";
 
@@ -480,6 +482,13 @@ export interface ModelInputs {
   callCoverage: CallCoverageInputs;
   /** Per-year clinical parameters keyed by PGY level. */
   clinical: Record<ResidencyYear, ResidentYearClinicalParams>;
+  /**
+   * The four-year block schedule. AUTHORITATIVE for where residents are and
+   * what they are doing: sponsorSiteShare, fractionOnAnesthesia,
+   * imeCountableShare and dutyWeeksPerYear above are derived from it and any
+   * values stored alongside are ignored. See schedule.ts.
+   */
+  blockSchedule: BlockSchedule;
 }
 
 /* ------------------------------------------------------------------ */

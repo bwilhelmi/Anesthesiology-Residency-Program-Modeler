@@ -14,6 +14,8 @@ import { DEFAULT_INPUTS } from "./constants";
 import { runModel } from "./model";
 import { marginalIme } from "./gme";
 import type { ModelInputs } from "./types";
+import { RESIDENCY_YEARS } from "./types";
+import { blk } from "./schedule";
 
 const amount = (items: { key: string; amount: number }[], key: string): number =>
   items.find((i) => i.key === key)?.amount ?? 0;
@@ -144,32 +146,59 @@ const amount = (items: { key: string; amount: number }[], key: string): number =
  * commits ago fixed the visible instance of "residents are slower than CRNAs".
  * This was the same belief hiding in a different input, and it survived because
  * it was hardcoded where no reviewer would look for an assumption.
+ *
+ * UPDATED AGAIN (the real block schedule) — and this one reverses everything.
+ * The program's actual block diagram replaced the three fractions the model had
+ * been asserting, and it says something none of them did: the SENIOR YEARS ARE
+ * MOSTLY SOMEWHERE ELSE. A CA-2 spends 3 of 13 blocks at Valleywise and a CA-3
+ * spends 3.4; the rest is at St. Joseph's, Barrow, and Phoenix Children's,
+ * which are different Medicare providers with their own CCNs.
+ *
+ *   sponsor-site share   PGY-3  0.85 asserted  ->  0.231 scheduled
+ *                        PGY-4  0.90 asserted  ->  0.262 scheduled
+ *
+ * The sponsor pays four years of stipends and receives a quarter of the senior
+ * coverage, so the labor line falls by 74% and both Medicare streams fall with
+ * the countable FTE:
+ *
+ *   labor line     $6,606,706  ->  $1,731,620
+ *   DGME             $976,368  ->    $589,361
+ *   IME            $1,043,918 (from $1,785,573)
+ *   NPV           +$16,181,672  ->  -$5,783,005
+ *   breakeven          year 4   ->      never
+ *
+ * Every prior correction in this file moved the answer up, and each was
+ * defensible. This one came from evidence rather than judgment, and it moved
+ * the answer down by more than all of them moved it up. That asymmetry is the
+ * point: the assumptions nobody had checked were the ones flattering the
+ * program, and they were flattering it because a fraction typed beside a
+ * schedule is an opinion, while the schedule is a fact.
  * ------------------------------------------------------------------------ */
 describe("Frozen default program (P7.3)", () => {
   const r = runModel(DEFAULT_INPUTS);
 
   it("reports the frozen summary", () => {
-    expect(r.summary.nominalCumulativeNet).toBeCloseTo(26_805_394.37, 1);
-    expect(r.summary.npv).toBeCloseTo(16_181_672.13, 1);
-    expect(r.summary.breakevenYear).toBe(4);
-    expect(r.summary.steadyStateAnnualNet).toBeCloseTo(3_986_705.99, 1);
+    expect(r.summary.nominalCumulativeNet).toBeCloseTo(-7_680_643.19, 1);
+    expect(r.summary.npv).toBeCloseTo(-5_783_005.27, 1);
+    expect(r.summary.breakevenYear).toBeNull();
+    expect(r.summary.steadyStateAnnualNet).toBeCloseTo(-504_439.17, 1);
   });
 
   it("reports the frozen mature year", () => {
     expect(r.steadyState.programYear).toBe(6);
     expect(r.steadyState.totalResidents).toBeCloseTo(23.2896, 4);
 
-    expect(amount(r.steadyState.benefits, "dgme")).toBeCloseTo(976_368, 0);
-    expect(amount(r.steadyState.benefits, "ime")).toBeCloseTo(1_785_573, 0);
-    expect(amount(r.steadyState.benefits, "labor")).toBeCloseTo(6_606_706, 0);
-    expect(amount(r.steadyState.benefits, "offservice")).toBeCloseTo(257_035, 0);
+    expect(amount(r.steadyState.benefits, "dgme")).toBeCloseTo(589_361, 0);
+    expect(amount(r.steadyState.benefits, "ime")).toBeCloseTo(1_043_918, 0);
+    expect(amount(r.steadyState.benefits, "labor")).toBeCloseTo(1_731_620, 0);
+    expect(amount(r.steadyState.benefits, "offservice")).toBeCloseTo(530_822, 0);
     expect(amount(r.steadyState.benefits, "retention")).toBeCloseTo(785_592, 0);
 
     expect(amount(r.steadyState.costs, "residentsalary")).toBeCloseTo(2_591_901, 0);
     expect(amount(r.steadyState.costs, "support")).toBeCloseTo(1_368_860, 0);
     expect(amount(r.steadyState.costs, "perresident")).toBeCloseTo(715_473, 0);
-    expect(amount(r.steadyState.costs, "efficiency")).toBeCloseTo(149_870, 0);
-    expect(amount(r.steadyState.costs, "supervision")).toBeCloseTo(1_598_463, 0);
+    expect(amount(r.steadyState.costs, "efficiency")).toBeCloseTo(90_559, 0);
+    expect(amount(r.steadyState.costs, "supervision")).toBeCloseTo(418_958, 0);
   });
 
   it("keeps line items summing to the reported totals in every year", () => {
@@ -231,9 +260,20 @@ describe("Property: NPV is non-increasing in the discount rate", () => {
       .summary.npv;
 
   it("holds for a conventional program: spend first, earn later", () => {
+    // The DEFAULTS no longer qualify: against the real block schedule the
+    // program loses money in every year, which is the inverted case tested
+    // below. So the conventional shape is CONSTRUCTED rather than hunted for —
+    // a program whose residents stay at the sponsor and deliver anesthesia,
+    // which spends first and earns later as the property requires.
+    const allSponsorAnesthesia = Object.fromEntries(
+      RESIDENCY_YEARS.map((year) => [
+        year,
+        Array.from({ length: 13 }, () => blk("anes", "site1", 0.2)),
+      ])
+    ) as ModelInputs["blockSchedule"];
     const programs: ModelInputs[] = [
-      DEFAULT_INPUTS,
-      { ...DEFAULT_INPUTS, residentsPerClass: 12 },
+      { ...DEFAULT_INPUTS, blockSchedule: allSponsorAnesthesia },
+      { ...DEFAULT_INPUTS, residentsPerClass: 10, blockSchedule: allSponsorAnesthesia },
     ];
     for (const program of programs) {
       // Guard the precondition rather than assuming it: the property below is a

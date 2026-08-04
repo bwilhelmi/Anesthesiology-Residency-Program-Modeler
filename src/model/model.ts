@@ -30,6 +30,7 @@ import {
   TEACHING_ANESTHESIA_CONCURRENCY_LIMIT,
 } from "./constants";
 import { gmeFundingTimeline, medicaidGme } from "./gme";
+import { applyScheduleToClinical, scheduleWarnings } from "./schedule";
 import type { GmeYearFte, GmeYearFunding } from "./gme";
 import {
   annualProgramSupportCost,
@@ -121,11 +122,14 @@ export function countableFteForYear(
  * fine for a single-year inspection, but runModel() always supplies it.
  */
 export function computeYear(
-  inputs: ModelInputs,
+  rawInputs: ModelInputs,
   programYear: number,
   residentsByYear: Record<ResidencyYear, number>,
   funding?: GmeYearFunding
 ): YearResult {
+  // Idempotent: runModel has usually resolved this already, but a direct caller
+  // must not get different clinical fractions than the full run would use.
+  const inputs = applyScheduleToClinical(rawInputs);
   const totalResidents = RESIDENCY_YEARS.reduce(
     (s, y) => s + (residentsByYear[y] ?? 0),
     0
@@ -554,7 +558,10 @@ export function computePreRevenueYear(
  * "steady state" is the first MATURE year (program year 6), where the cap, the
  * rolling average, and the ratio cap all bind; years 1–4 are the ramp.
  */
-export function runModel(inputs: ModelInputs): ModelResult {
+export function runModel(rawInputs: ModelInputs): ModelResult {
+  // The block schedule is authoritative for where residents are and what they
+  // are doing; any fractions stored beside it are ignored.
+  const inputs = applyScheduleToClinical(rawInputs);
   const horizon = Math.max(1, Math.round(inputs.projection.horizonYears));
   const preRevenueYears = Math.max(0, Math.round(inputs.projection.preRevenueYears));
 
@@ -599,7 +606,10 @@ export function runModel(inputs: ModelInputs): ModelResult {
     ),
     steadyStateBenefits: steadyState.benefits,
     steadyStateCosts: steadyState.costs,
-    warnings: dedupe(years.flatMap((y) => y.warnings)),
+    warnings: dedupe([
+      ...years.flatMap((y) => y.warnings),
+      ...scheduleWarnings(inputs.blockSchedule),
+    ]),
   };
 }
 
@@ -641,7 +651,8 @@ export function summarize(
 }
 
 /** Convenience: total anesthetist-equivalent coverage at steady state. */
-export function steadyStateCoverageFte(inputs: ModelInputs): number {
+export function steadyStateCoverageFte(rawInputs: ModelInputs): number {
+  const inputs = applyScheduleToClinical(rawInputs);
   return totalCoverageFte(
     residentsInProgramYear(inputs, RESIDENCY_YEARS.length),
     inputs

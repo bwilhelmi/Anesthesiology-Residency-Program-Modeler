@@ -7,6 +7,7 @@ import {
   YEAR_LABELS,
   coverageFteForYear,
   crnaCostOfCoverage,
+  deriveSchedule,
   effectivePra,
   incrementalSupervisionCostPerLocation,
   runModel,
@@ -29,6 +30,7 @@ import { Results } from "./components/Results";
 import { RegionPicker } from "./components/RegionPicker";
 import { HospitalPicker } from "./components/HospitalPicker";
 import { Bibliography } from "./components/References";
+import { BlockScheduleEditor } from "./components/BlockSchedule";
 import { currency, number, percent } from "./format";
 import { restoreInputs } from "./persist";
 
@@ -44,7 +46,7 @@ import { restoreInputs } from "./persist";
  * number renders the whole model as "$NaN" with no error and no user-visible
  * way to recover. See persist.ts.
  */
-const STORAGE_KEY = "anesthesia-residency-model-inputs-v5";
+const STORAGE_KEY = "anesthesia-residency-model-inputs-v6";
 
 function loadInitial(): ModelInputs {
   try {
@@ -72,6 +74,11 @@ export function App() {
   const result = React.useMemo(() => runModel(inputs), [inputs]);
   // One model run per variable end — cheap, but not free, so memoize it.
   const tornadoBars = React.useMemo(() => tornado(inputs), [inputs]);
+  // The block schedule is authoritative; these are what it implies.
+  const scheduleDerived = React.useMemo(
+    () => deriveSchedule(inputs.blockSchedule),
+    [inputs.blockSchedule]
+  );
   const demand = staffedLocationDemand(inputs);
   const coverage = steadyStateCoverageFte(inputs);
   // The presets patch the current inputs rather than replacing them, so a
@@ -793,6 +800,34 @@ export function App() {
           </Section>
 
           <Section
+            title="Block schedule"
+            subtitle="13 blocks of 4 weeks, per training year"
+            defaultOpen={false}
+          >
+            <div className="callout">
+              This is the model's evidence base, not another set of dials. The
+              sponsor-site share, on-anesthesia share, and IME-countable share underneath
+              every coverage figure are <strong>derived from these blocks</strong> — a
+              schedule is a fact, a fraction typed beside it is only an opinion. Blocks
+              earning the sponsor no anesthesia care are flagged rather than averaged away.
+            </div>
+            {RESIDENCY_YEARS.map((year) => (
+              <div key={year} className="clinical-year">
+                <h4>{YEAR_LABELS[year]}</h4>
+                <BlockScheduleEditor
+                  year={year}
+                  blocks={inputs.blockSchedule[year]}
+                  onChange={(updated) =>
+                    patch({
+                      blockSchedule: { ...inputs.blockSchedule, [year]: updated },
+                    })
+                  }
+                />
+              </div>
+            ))}
+          </Section>
+
+          <Section
             title="Resident clinical value by year"
             subtitle="How much anesthesia coverage each level provides"
             defaultOpen={false}
@@ -800,21 +835,15 @@ export function App() {
             {RESIDENCY_YEARS.map((year) => (
               <div key={year} className="clinical-year">
                 <h4>{YEAR_LABELS[year]}</h4>
-                <SliderField
-                  label="Share of the year at the sponsor hospital"
-                  help="Time at participating sites (county, VA, children's) generates neither sponsor Medicare FTE nor sponsor coverage."
-                  value={inputs.clinical[year].sponsorSiteShare}
-                  onChange={(v) => patchClinical(year, { sponsorSiteShare: v })}
-                />
-                <SliderField
-                  label="Fraction of sponsor-site time on anesthesia"
-                  help={`Conditional on being here. Composite anesthesia exposure over the year: ${percent(
-                    inputs.clinical[year].sponsorSiteShare *
-                      inputs.clinical[year].fractionOnAnesthesia
-                  )}.`}
-                  value={inputs.clinical[year].fractionOnAnesthesia}
-                  onChange={(v) => patchClinical(year, { fractionOnAnesthesia: v })}
-                />
+                <div className="callout">
+                  Derived from the block schedule:{" "}
+                  <strong>{percent(scheduleDerived[year].sponsorSiteShare)}</strong> of the
+                  year at the sponsor hospital,{" "}
+                  <strong>{percent(scheduleDerived[year].fractionOnAnesthesia)}</strong> of
+                  that on anesthesia,{" "}
+                  <strong>{percent(scheduleDerived[year].imeCountableShare)}</strong>{" "}
+                  IME-countable. Edit the blocks above to change these.
+                </div>
                 <div className="grid-2">
                   <NumberField
                     label="Duty hours / week"
@@ -874,12 +903,6 @@ export function App() {
                   }
                   prefix="$"
                   step={5000}
-                />
-                <SliderField
-                  label="IME-countable share of sponsor time"
-                  help="Patient-care activities are IME-countable; non-patient-care research time is not (42 CFR 412.105(f))."
-                  value={inputs.clinical[year].imeCountableShare}
-                  onChange={(v) => patchClinical(year, { imeCountableShare: v })}
                 />
               </div>
             ))}

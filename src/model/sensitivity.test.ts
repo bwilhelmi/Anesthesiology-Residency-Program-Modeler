@@ -76,8 +76,15 @@ describe("Tornado (P5.1)", () => {
       },
     }).summary.npv;
     expect(bar.low).toBeCloseTo(low, 6);
-    // A higher discount rate is worth less.
-    expect(bar.high).toBeLessThan(bar.low);
+
+    // Direction depends on the cash-flow shape, not on the discount rate: for a
+    // program that earns its way out, a higher rate is worth less; for one that
+    // loses money every year, a higher rate discounts the losses and flatters
+    // it. The fixture is the latter at the shipped block schedule.
+    const earning = { ...fixture, residentsPerClass: 30 };
+    const earningBar = tornado(earning).find((b) => b.key === "discount")!;
+    expect(earningBar.high).toBeLessThan(earningBar.low);
+    expect(bar.high).toBeGreaterThan(bar.low);
   });
 
   it("swings the supervision ratio between one and two rooms", () => {

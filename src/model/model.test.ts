@@ -36,6 +36,7 @@ import {
   residentSalaryCost,
 } from "./program";
 import { FIRST_GRADUATION_BENEFIT_YEAR } from "./workforce";
+import { applyScheduleToClinical } from "./schedule";
 import {
   computeYear,
   countableFteForYear,
@@ -642,8 +643,9 @@ describe("Throughput loss is charged once (P0.2)", () => {
     const cohort = residentsInProgramYear(inputs, 4);
     const r = computeYear(inputs, 4, cohort);
     const crnaLoaded = crnaCostOfCoverage(inputs.salaries);
+    const resolved = applyScheduleToClinical(inputs);
     const expected = RESIDENCY_YEARS.reduce((s, y) => {
-      const p = inputs.clinical[y];
+      const p = resolved.clinical[y];
       const hours =
         p.dutyHoursPerWeek * p.dutyWeeksPerYear * p.sponsorSiteShare * p.fractionOnAnesthesia;
       return s + cohort[y] * ((hours * p.anesthesiaProductivityPerHour) / 2080) * crnaLoaded;
@@ -656,8 +658,9 @@ describe("Throughput loss is charged once (P0.2)", () => {
     const inputs: ModelInputs = { ...DEFAULT_INPUTS, residentsPerClass: 4 };
     const cohort = residentsInProgramYear(inputs, 4);
     const r = computeYear(inputs, 4, cohort);
+    const resolved = applyScheduleToClinical(inputs);
     const expected = RESIDENCY_YEARS.reduce((s, y) => {
-      const p = inputs.clinical[y];
+      const p = resolved.clinical[y];
       return (
         s +
         cohort[y] *
@@ -672,8 +675,8 @@ describe("Throughput loss is charged once (P0.2)", () => {
 });
 
 describe("Coverage cannot exceed staffed-location demand (P0.3)", () => {
-  const oversized: ModelInputs = { ...DEFAULT_INPUTS, residentsPerClass: 20 };
-  const doubled: ModelInputs = { ...DEFAULT_INPUTS, residentsPerClass: 40 };
+  const oversized: ModelInputs = { ...DEFAULT_INPUTS, residentsPerClass: 90 };
+  const doubled: ModelInputs = { ...DEFAULT_INPUTS, residentsPerClass: 180 };
 
   it("caps the labor benefit at demand while stipends keep scaling", () => {
     const a = computeYear(oversized, 4, residentsInProgramYear(oversized, 4));
