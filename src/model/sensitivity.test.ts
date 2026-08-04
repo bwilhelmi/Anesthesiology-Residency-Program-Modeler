@@ -78,13 +78,19 @@ describe("Tornado (P5.1)", () => {
     expect(bar.low).toBeCloseTo(low, 6);
 
     // Direction depends on the cash-flow shape, not on the discount rate: for a
-    // program that earns its way out, a higher rate is worth less; for one that
-    // loses money every year, a higher rate discounts the losses and flatters
-    // it. The fixture is the latter at the shipped block schedule.
-    const earning = { ...fixture, residentsPerClass: 30 };
-    const earningBar = tornado(earning).find((b) => b.key === "discount")!;
-    expect(earningBar.high).toBeLessThan(earningBar.low);
-    expect(bar.high).toBeGreaterThan(bar.low);
+    // program that earns its way out a higher rate is worth less, and for one
+    // that loses money every year a higher rate discounts the losses and
+    // flatters it. The shipped defaults are the former.
+    expect(bar.high).toBeLessThan(bar.low);
+
+    const alwaysLosing = {
+      ...fixture,
+      gme: { ...fixture.gme, scenario: "atCap" as const, awardedNewSlots: 0 },
+      retention: { ...fixture.retention, enabled: false },
+      locations: { ...fixture.locations, averageConcurrentStaffedLocations: 2 },
+    };
+    const losingBar = tornado(alwaysLosing).find((b) => b.key === "discount")!;
+    expect(losingBar.high).toBeGreaterThan(losingBar.low);
   });
 
   it("swings the supervision ratio between one and two rooms", () => {

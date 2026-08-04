@@ -167,10 +167,18 @@ productivity inputs — but it is the first number a skeptical CFO will stop on.
 The junior levels are weaker numbers, carried over from earlier ballpark
 estimates. They matter less: PGY-1 is under 3% of the labor line.
 
-Medicare FTE counts at the hospital where the training occurs, and clinical value
-accrues where the resident is standing — so months at a county hospital or VA
-generate neither sponsor FTE nor sponsor coverage. Every one of these parameters
-is editable per PGY level.
+Medicare FTE counts at the provider where the training occurs, and clinical
+value accrues where the resident is standing. But "the provider" is not always
+one hospital: under a **Medicare GME affiliated group** (42 CFR 413.79(f)),
+members pool FTE cap room and share the program's costs, and a block at a member
+hospital stays inside the sponsoring unit. Each member still carries its own
+CCN, cap, per-resident amount and IME base.
+
+These are not free-floating fractions. They are **derived from the block
+schedule** — 13 blocks of 4 weeks per training year, each a rotation at a site,
+with its outpatient and research shares. Edit the blocks; the fractions follow.
+Blocks that earn the sponsoring group no anesthesia care, research above all,
+are flagged individually rather than averaged away.
 
 ---
 

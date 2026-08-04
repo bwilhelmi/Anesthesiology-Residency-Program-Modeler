@@ -47,18 +47,36 @@ export interface TrainingSite {
   /** CMS Certification Number. Sites sharing a CCN are ONE Medicare provider. */
   ccn: string | null;
   /**
-   * Share of this site's time that accrues to the sponsoring hospital. 1 for
-   * the sponsor's own CCN, 0 for another provider. An "anywhere" elective is a
-   * genuine unknown and carries a localizable placeholder.
+   * Share of this site's time that accrues to the SPONSORING GROUP — which is
+   * not necessarily one hospital. 1 for a member provider, 0 for an outside
+   * one. An "anywhere" elective is a genuine unknown and carries a placeholder.
    */
   sponsorShare: number;
+  /**
+   * Whether this provider is inside the sponsoring group: a Medicare GME
+   * affiliated group pooling FTE cap room across its members and sharing the
+   * program's costs between them (42 CFR 413.79(f)).
+   */
+  inAlliance: boolean;
   note?: string;
 }
 
 /**
- * Training sites, from the program's block diagram. Valleywise Health Medical
- * Center is the sponsor; its Peoria comprehensive health center shares the same
- * CCN and is therefore the same Medicare provider, not an away rotation.
+ * Training sites, from the program's block diagram.
+ *
+ * The sponsoring unit here is NOT a single hospital. Valleywise Health and
+ * CommonSpirit St. Joseph's both put cap room into this program through the
+ * Creighton Health Alliance in Phoenix and divide its costs between them — a
+ * Medicare GME affiliated group (42 CFR 413.79(f)), which is what lets member
+ * hospitals aggregate and redistribute FTE cap slots.
+ *
+ * That matters more than any single input. Time at St. Joseph's or Barrow is
+ * NOT an away rotation whose value leaks to a stranger; it accrues to a member
+ * of the group that is paying for the program. Phoenix Children's is outside
+ * the alliance, so time there does leak.
+ *
+ * Providers are still distinguished by CCN, because each carries its own cap,
+ * per-resident amount, bed count and IME base even inside an affiliated group.
  */
 export const SITES: TrainingSite[] = [
   {
@@ -66,39 +84,47 @@ export const SITES: TrainingSite[] = [
     label: "Site 1 — Valleywise Health Medical Center",
     ccn: "030253",
     sponsorShare: 1,
+    inAlliance: true,
   },
   {
     id: "site1p",
     label: "Site 1P — Valleywise Comprehensive Health Center, Peoria",
     ccn: "030253",
     sponsorShare: 1,
-    note: "Shares the sponsor's CCN, so it is the same Medicare provider — but it is an outpatient center, which is what limits its IME countability.",
+    inAlliance: true,
+    note: "Shares Valleywise's CCN, so it is the same Medicare provider — but it is an outpatient center, which is what limits its IME countability.",
   },
   {
     id: "site2",
-    label: "Site 2 — St. Joseph's Hospital & Medical Center",
+    label: "Site 2 — St. Joseph's Hospital & Medical Center (CommonSpirit)",
     ccn: "039598",
-    sponsorShare: 0,
+    sponsorShare: 1,
+    inAlliance: true,
+    note: "An alliance member, not an away rotation: it contributes cap room to this program and shares its costs.",
   },
   {
     id: "site2b",
     label: "Site 2B — Barrow Neurological Institute at St. Joseph's",
     ccn: "039598",
-    sponsorShare: 0,
-    note: "Same CCN as Site 2 — one provider, and not the sponsor.",
+    sponsorShare: 1,
+    inAlliance: true,
+    note: "Same CCN as Site 2 — one provider, and inside the alliance.",
   },
   {
     id: "site3",
     label: "Site 3 — Phoenix Children's Hospital",
     ccn: "038015",
     sponsorShare: 0,
+    inAlliance: false,
+    note: "Outside the alliance: coverage and Medicare FTE here accrue to Phoenix Children's.",
   },
   {
     id: "elective",
     label: "Elective — any approved site",
     ccn: null,
-    sponsorShare: 0.2,
-    note: "An elective may be taken at any of the five sites or internationally. 0.2 is a placeholder — one site in five. Set it to the share your residents actually take at the sponsor.",
+    sponsorShare: 0.8,
+    inAlliance: true,
+    note: "An elective may be taken at any of the five sites or internationally. 0.8 is a placeholder — four of the five approved sites are alliance members. Set it to the share your residents actually take inside the alliance.",
   },
 ];
 

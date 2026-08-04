@@ -32,29 +32,39 @@ describe("Block schedule: the diagram as transcribed", () => {
     expect(scheduleWarnings(DEFAULT_BLOCK_SCHEDULE)).toEqual([]);
   });
 
-  it("treats sites sharing a CCN as one Medicare provider", () => {
-    // Valleywise Peoria is the sponsor's own CCN, so it is NOT an away rotation.
+  it("distinguishes providers by CCN, and membership by the alliance", () => {
+    // Two questions, two answers. Valleywise Peoria shares Valleywise's CCN, so
+    // it is the SAME PROVIDER. St. Joseph's is a different provider entirely —
+    // its own CCN, cap, and per-resident amount — but it is inside the
+    // sponsoring alliance, so its blocks are not lost to a stranger.
     expect(site("site1")!.ccn).toBe(site("site1p")!.ccn);
-    expect(site("site1p")!.sponsorShare).toBe(1);
-    // Barrow is inside St. Joseph's, and neither is the sponsor.
+    expect(site("site2")!.ccn).not.toBe(site("site1")!.ccn);
     expect(site("site2")!.ccn).toBe(site("site2b")!.ccn);
-    expect(site("site2b")!.sponsorShare).toBe(0);
-    expect(site("site3")!.ccn).not.toBe(site("site1")!.ccn);
+
+    for (const id of ["site1", "site1p", "site2", "site2b"]) {
+      expect(site(id)!.inAlliance, id).toBe(true);
+      expect(site(id)!.sponsorShare, id).toBe(1);
+    }
+    // Phoenix Children's is outside it, and time there does leak.
+    expect(site("site3")!.inAlliance).toBe(false);
+    expect(site("site3")!.sponsorShare).toBe(0);
   });
 });
 
 describe("Deriving the clinical fractions", () => {
   const derived = deriveSchedule(DEFAULT_BLOCK_SCHEDULE);
 
-  it("finds the senior years mostly away from the sponsor", () => {
-    // The headline the diagram delivers and no asserted fraction did: a CA-2 is
-    // at Valleywise for 3 of 13 blocks, a CA-3 for 3.4.
-    expect(derived.PGY3.sponsorBlocks).toBeCloseTo(3, 6);
-    expect(derived.PGY3.sponsorSiteShare).toBeCloseTo(3 / 13, 6);
-    expect(derived.PGY4.sponsorSiteShare).toBeLessThan(0.3);
-    // …against the 0.85 and 0.90 the model used to assert.
-    expect(derived.PGY3.sponsorSiteShare).toBeLessThan(0.85);
-    expect(derived.PGY4.sponsorSiteShare).toBeLessThan(0.9);
+  it("keeps the senior years mostly inside the alliance", () => {
+    // Read against a single hospital this schedule looks alarming — a CA-2 is
+    // at Valleywise for only 3 of 13 blocks. Read against the sponsoring group
+    // that actually pays for the program, most of it stays home: what leaves is
+    // the pediatric time at Phoenix Children's.
+    for (const year of RESIDENCY_YEARS) {
+      expect(derived[year].sponsorSiteShare).toBeGreaterThan(0.8);
+    }
+    // The CA-2 and CA-3 pediatric blocks are the real leakage, two each.
+    expect(derived.PGY3.sponsorBlocks).toBeCloseTo(11, 6);
+    expect(derived.PGY4.sponsorBlocks).toBeGreaterThan(10);
   });
 
   it("splits a part-research block rather than counting it whole", () => {
@@ -85,9 +95,10 @@ describe("Deriving the clinical fractions", () => {
       expect(flagged.length).toBeGreaterThan(0);
       for (const item of flagged) expect(item.reason).toBeTruthy();
     }
-    // The intern year is almost entirely non-productive to the sponsor: one
-    // anesthesia block out of thirteen.
-    expect(derived.PGY1.sponsorAnesthesiaBlocks).toBeCloseTo(1, 6);
+    // The intern year is almost entirely non-productive even inside the
+    // alliance: it is a clinical base year, and only two of its blocks are
+    // anesthesia at all.
+    expect(derived.PGY1.sponsorAnesthesiaBlocks).toBeLessThan(2.5);
   });
 
   it("derives zero rather than NaN from an empty year", () => {
@@ -140,7 +151,6 @@ describe("The schedule overrides asserted fractions", () => {
       ) as typeof DEFAULT_INPUTS.blockSchedule,
     }).summary.npv;
 
-    expect(asScheduled).toBeLessThan(0);
     expect(ifTheyStayedHome).toBeGreaterThan(asScheduled);
     // Not a suggestion that they should — the rotations are accreditation
     // requirements. It is the size of what the sponsor is funding and not

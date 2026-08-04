@@ -173,32 +173,55 @@ const amount = (items: { key: string; amount: number }[], key: string): number =
  * point: the assumptions nobody had checked were the ones flattering the
  * program, and they were flattering it because a fraction typed beside a
  * schedule is an opinion, while the schedule is a fact.
+ *
+ * CORRECTED IMMEDIATELY AFTER (the sponsoring unit is an alliance): the reading
+ * above was wrong, and wrong in an instructive way. It measured the schedule
+ * against ONE hospital. Valleywise Health and CommonSpirit St. Joseph's both
+ * put cap room into this program through the Creighton Health Alliance in
+ * Phoenix and divide its costs between them — a Medicare GME affiliated group
+ * (42 CFR 413.79(f)). Blocks at St. Joseph's and Barrow are therefore inside
+ * the sponsoring group, not lost to a stranger. Only Phoenix Children's is
+ * outside it.
+ *
+ *   alliance-site share   PGY-3  0.231 (as one hospital)  ->  0.846
+ *                         PGY-4  0.262                    ->  0.815
+ *
+ *   labor line     $1,731,620  ->  $4,601,576
+ *   NPV            -$5,783,005  ->  +$15,081,458
+ *   breakeven            never   ->      year 4
+ *
+ * Two lessons, both worth more than the number. The schedule was right and the
+ * INTERPRETATION of it was wrong: data does not speak for itself, and "where is
+ * this resident" is meaningless until "who is asking" is settled. And the
+ * original asserted fractions (0.85, 0.90) turn out to have been roughly right
+ * for the alliance while badly wrong for a single hospital — which is exactly
+ * the kind of coincidence that keeps a broken model looking healthy.
  * ------------------------------------------------------------------------ */
 describe("Frozen default program (P7.3)", () => {
   const r = runModel(DEFAULT_INPUTS);
 
   it("reports the frozen summary", () => {
-    expect(r.summary.nominalCumulativeNet).toBeCloseTo(-7_680_643.19, 1);
-    expect(r.summary.npv).toBeCloseTo(-5_783_005.27, 1);
-    expect(r.summary.breakevenYear).toBeNull();
-    expect(r.summary.steadyStateAnnualNet).toBeCloseTo(-504_439.17, 1);
+    expect(r.summary.nominalCumulativeNet).toBeCloseTo(24_519_764.18, 1);
+    expect(r.summary.npv).toBeCloseTo(15_081_458.75, 1);
+    expect(r.summary.breakevenYear).toBe(4);
+    expect(r.summary.steadyStateAnnualNet).toBeCloseTo(3_475_046.23, 1);
   });
 
   it("reports the frozen mature year", () => {
     expect(r.steadyState.programYear).toBe(6);
     expect(r.steadyState.totalResidents).toBeCloseTo(23.2896, 4);
 
-    expect(amount(r.steadyState.benefits, "dgme")).toBeCloseTo(589_361, 0);
-    expect(amount(r.steadyState.benefits, "ime")).toBeCloseTo(1_043_918, 0);
-    expect(amount(r.steadyState.benefits, "labor")).toBeCloseTo(1_731_620, 0);
-    expect(amount(r.steadyState.benefits, "offservice")).toBeCloseTo(530_822, 0);
+    expect(amount(r.steadyState.benefits, "dgme")).toBeCloseTo(1_145_198, 0);
+    expect(amount(r.steadyState.benefits, "ime")).toBeCloseTo(2_019_454, 0);
+    expect(amount(r.steadyState.benefits, "labor")).toBeCloseTo(4_601_576, 0);
+    expect(amount(r.steadyState.benefits, "offservice")).toBeCloseTo(830_027, 0);
     expect(amount(r.steadyState.benefits, "retention")).toBeCloseTo(785_592, 0);
 
     expect(amount(r.steadyState.costs, "residentsalary")).toBeCloseTo(2_591_901, 0);
     expect(amount(r.steadyState.costs, "support")).toBeCloseTo(1_368_860, 0);
     expect(amount(r.steadyState.costs, "perresident")).toBeCloseTo(715_473, 0);
-    expect(amount(r.steadyState.costs, "efficiency")).toBeCloseTo(90_559, 0);
-    expect(amount(r.steadyState.costs, "supervision")).toBeCloseTo(418_958, 0);
+    expect(amount(r.steadyState.costs, "efficiency")).toBeCloseTo(117_234, 0);
+    expect(amount(r.steadyState.costs, "supervision")).toBeCloseTo(1_113_331, 0);
   });
 
   it("keeps line items summing to the reported totals in every year", () => {
@@ -260,9 +283,9 @@ describe("Property: NPV is non-increasing in the discount rate", () => {
       .summary.npv;
 
   it("holds for a conventional program: spend first, earn later", () => {
-    // The DEFAULTS no longer qualify: against the real block schedule the
-    // program loses money in every year, which is the inverted case tested
-    // below. So the conventional shape is CONSTRUCTED rather than hunted for —
+    // The defaults are conventional again now that the alliance is the
+    // sponsoring unit, but the shape is still CONSTRUCTED rather than assumed —
+    // the property is about cash-flow shape, not about this program. So the conventional shape is CONSTRUCTED rather than hunted for —
     // a program whose residents stay at the sponsor and deliver anesthesia,
     // which spends first and earns later as the property requires.
     const allSponsorAnesthesia = Object.fromEntries(
