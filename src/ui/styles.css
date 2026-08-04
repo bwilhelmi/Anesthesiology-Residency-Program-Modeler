@@ -1377,3 +1377,37 @@ td.pos,
     grid-column: 2;
   }
 }
+
+/* --- Accreditation requirements ------------------------------------------- */
+/* Met and unmet are distinguished by weight and a marker glyph, never by hue. */
+
+.req-list {
+  list-style: none;
+  margin: var(--space-2) 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+.req-list li {
+  font-size: 12.5px;
+  line-height: 18px;
+  padding-left: 16px;
+  position: relative;
+}
+.req-list li::before {
+  position: absolute;
+  left: 0;
+  content: "✓";
+  color: var(--color-neutral-600);
+}
+.req-list li.unmet {
+  font-weight: 600;
+}
+.req-list li.unmet::before {
+  content: "!";
+  color: var(--color-text);
+}
+.req-note {
+  color: var(--color-neutral-700);
+  font-weight: 400;
+}

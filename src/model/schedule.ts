@@ -62,75 +62,67 @@ export interface TrainingSite {
 }
 
 /**
- * Training sites, from the program's block diagram.
+ * A generic starting set of sites, meant to be renamed rather than used as-is.
+ * Sites are DATA on the model inputs, not a fixed list in code, because the
+ * only universal thing about them is the question they answer: does this block
+ * accrue to whoever is paying for the program?
  *
- * The sponsoring unit here is NOT a single hospital. Valleywise Health and
- * CommonSpirit St. Joseph's both put cap room into this program through the
- * Creighton Health Alliance in Phoenix and divide its costs between them — a
- * Medicare GME affiliated group (42 CFR 413.79(f)), which is what lets member
- * hospitals aggregate and redistribute FTE cap slots.
+ * Two distinctions carry all the weight and are easy to conflate:
  *
- * That matters more than any single input. Time at St. Joseph's or Barrow is
- * NOT an away rotation whose value leaks to a stranger; it accrues to a member
- * of the group that is paying for the program. Phoenix Children's is outside
- * the alliance, so time there does leak.
+ *   CCN — which Medicare provider the block belongs to. Two sites sharing a CCN
+ *   (a hospital and its provider-based outpatient center) are ONE provider with
+ *   one cap, one per-resident amount, one bed count.
  *
- * Providers are still distinguished by CCN, because each carries its own cap,
- * per-resident amount, bed count and IME base even inside an affiliated group.
+ *   ALLIANCE — whether that provider is inside the sponsoring group. Under a
+ *   Medicare GME affiliated group (42 CFR 413.79(f)), separate hospitals pool
+ *   FTE cap room and divide the program's costs, so a block at a partner is not
+ *   lost to a stranger even though it is a different provider.
  */
-export const SITES: TrainingSite[] = [
+export const DEFAULT_SITES: TrainingSite[] = [
   {
-    id: "site1",
-    label: "Site 1 — Valleywise Health Medical Center",
-    ccn: "030253",
+    id: "sponsor",
+    label: "Sponsor hospital",
+    ccn: null,
     sponsorShare: 1,
     inAlliance: true,
   },
   {
-    id: "site1p",
-    label: "Site 1P — Valleywise Comprehensive Health Center, Peoria",
-    ccn: "030253",
+    id: "sponsor_outpatient",
+    label: "Sponsor outpatient center (same CCN)",
+    ccn: null,
     sponsorShare: 1,
     inAlliance: true,
-    note: "Shares Valleywise's CCN, so it is the same Medicare provider — but it is an outpatient center, which is what limits its IME countability.",
+    note: "A provider-based clinic sharing the sponsor's CCN — the same Medicare provider, not an away rotation.",
   },
   {
-    id: "site2",
-    label: "Site 2 — St. Joseph's Hospital & Medical Center (CommonSpirit)",
-    ccn: "039598",
+    id: "alliance_partner",
+    label: "Alliance partner hospital (own CCN)",
+    ccn: null,
     sponsorShare: 1,
     inAlliance: true,
-    note: "An alliance member, not an away rotation: it contributes cap room to this program and shares its costs.",
+    note: "A separate Medicare provider inside the sponsoring group: its own cap and per-resident amount, but it shares the program's costs.",
   },
   {
-    id: "site2b",
-    label: "Site 2B — Barrow Neurological Institute at St. Joseph's",
-    ccn: "039598",
-    sponsorShare: 1,
-    inAlliance: true,
-    note: "Same CCN as Site 2 — one provider, and inside the alliance.",
-  },
-  {
-    id: "site3",
-    label: "Site 3 — Phoenix Children's Hospital",
-    ccn: "038015",
+    id: "participating",
+    label: "Participating site outside the group",
+    ccn: null,
     sponsorShare: 0,
     inAlliance: false,
-    note: "Outside the alliance: coverage and Medicare FTE here accrue to Phoenix Children's.",
+    note: "Coverage and Medicare FTE here accrue to that hospital, not to the sponsoring group.",
   },
   {
     id: "elective",
     label: "Elective — any approved site",
     ccn: null,
-    sponsorShare: 0.8,
+    sponsorShare: 0.5,
     inAlliance: true,
-    note: "An elective may be taken at any of the five sites or internationally. 0.8 is a placeholder — four of the five approved sites are alliance members. Set it to the share your residents actually take inside the alliance.",
+    note: "An elective may be taken anywhere approved. Set the share your residents actually take inside the sponsoring group.",
   },
 ];
 
-const SITES_BY_ID = new Map(SITES.map((s) => [s.id, s]));
-export function site(id: string): TrainingSite | undefined {
-  return SITES_BY_ID.get(id);
+/** Look a site up in a program's own site list. */
+export function site(id: string, sites: TrainingSite[] = DEFAULT_SITES): TrainingSite | undefined {
+  return sites.find((s) => s.id === id);
 }
 
 /* ------------------------------- Rotations -------------------------------- */
@@ -166,6 +158,10 @@ export const ROTATIONS: RotationDefinition[] = [
   { id: "burn_tr", label: "BURN/TR — Burn / trauma", kind: "anesthesia" },
   { id: "transpl", label: "TRANSPL — Transplant anesthesia", kind: "anesthesia" },
   { id: "acute_pain_ra", label: "ACUTE PAIN/RA — Acute pain / regional anesthesia", kind: "anesthesia" },
+  { id: "or_nora", label: "NORA — Non-operating-room anesthesia", kind: "anesthesia" },
+  { id: "or_night", label: "Night float / in-house call", kind: "anesthesia" },
+  { id: "or_ambulatory", label: "Ambulatory / outpatient anesthesia", kind: "anesthesia" },
+  { id: "or_trauma", label: "Trauma / vascular anesthesia", kind: "anesthesia" },
 
   { id: "preop_pacu", label: "PREOP/PACU — Preoperative clinic / PACU", kind: "patientCare" },
   { id: "chronic_pain", label: "CHRONIC PAIN — Chronic pain medicine", kind: "patientCare" },
@@ -274,6 +270,7 @@ export interface ScheduleBreakdown extends DerivedYearParams {
  */
 export function deriveYear(
   yearBlocks: Block[],
+  sites: TrainingSite[] = DEFAULT_SITES,
   imeOutpatientCountability: number = IME_OUTPATIENT_COUNTABILITY
 ): ScheduleBreakdown {
   let sponsorBlocks = 0;
@@ -283,7 +280,7 @@ export function deriveYear(
 
   for (const block of yearBlocks) {
     const def = rotation(block.rotationId);
-    const s = site(block.siteId);
+    const s = site(block.siteId, sites);
     const sponsorShare = clamp01(s?.sponsorShare ?? 0);
     const research = clamp01(block.researchShare);
     const outpatient = clamp01(block.outpatientShare);
@@ -339,17 +336,21 @@ export function deriveYear(
 /** Derive every training level at once. */
 export function deriveSchedule(
   schedule: BlockSchedule,
+  sites: TrainingSite[] = DEFAULT_SITES,
   imeOutpatientCountability?: number
 ): Record<ResidencyYear, ScheduleBreakdown> {
   const out = {} as Record<ResidencyYear, ScheduleBreakdown>;
   for (const year of RESIDENCY_YEARS) {
-    out[year] = deriveYear(schedule[year] ?? [], imeOutpatientCountability);
+    out[year] = deriveYear(schedule[year] ?? [], sites, imeOutpatientCountability);
   }
   return out;
 }
 
 /** Schedule problems worth surfacing: short years, unknown rotations or sites. */
-export function scheduleWarnings(schedule: BlockSchedule): string[] {
+export function scheduleWarnings(
+  schedule: BlockSchedule,
+  sites: TrainingSite[] = DEFAULT_SITES
+): string[] {
   const warnings: string[] = [];
   for (const year of RESIDENCY_YEARS) {
     const yearBlocks = schedule[year] ?? [];
@@ -361,7 +362,7 @@ export function scheduleWarnings(schedule: BlockSchedule): string[] {
       );
     }
     const unknownRotation = yearBlocks.filter((b) => !rotation(b.rotationId)).length;
-    const unknownSite = yearBlocks.filter((b) => !site(b.siteId)).length;
+    const unknownSite = yearBlocks.filter((b) => !site(b.siteId, sites)).length;
     if (unknownRotation) {
       warnings.push(
         `${year} has ${unknownRotation} block(s) with an unrecognised rotation; they are ` +
@@ -396,11 +397,12 @@ export function applyScheduleToClinical<
   T extends {
     clinical: Record<ResidencyYear, C>;
     blockSchedule?: BlockSchedule;
+    sites?: TrainingSite[];
   },
   C extends DerivedYearParams,
 >(inputs: T): T {
   if (!inputs.blockSchedule) return inputs;
-  const derived = deriveSchedule(inputs.blockSchedule);
+  const derived = deriveSchedule(inputs.blockSchedule, inputs.sites ?? DEFAULT_SITES);
   const clinical = {} as Record<ResidencyYear, C>;
   for (const year of RESIDENCY_YEARS) {
     const d = derived[year];
@@ -424,13 +426,149 @@ export function applyScheduleToClinical<
  * hospital, and every Medicare input it holds — cap, per-resident amount, bed
  * count, IME base — is a single-provider field standing in for several.
  */
-export function allianceProviders(schedule: BlockSchedule): string[] {
+export function allianceProviders(
+  schedule: BlockSchedule,
+  sites: TrainingSite[] = DEFAULT_SITES
+): string[] {
   const ccns = new Set<string>();
   for (const year of RESIDENCY_YEARS) {
     for (const block of schedule[year] ?? []) {
-      const s = site(block.siteId);
+      const s = site(block.siteId, sites);
       if (s?.inAlliance && s.ccn) ccns.add(s.ccn);
     }
   }
   return [...ccns].sort();
+}
+
+/* ------------------------ ACGME clinical requirements --------------------- */
+
+/**
+ * Minimum clinical experiences an anesthesiology program must provide to be
+ * accredited.
+ *
+ * This exists because a block schedule is not only an economic document. Blocks
+ * that earn the sponsoring hospital nothing are often blocks the program CANNOT
+ * DROP: the pediatric months at a children's hospital leak coverage precisely
+ * because the sponsor has no pediatric case mix, and removing them would cost
+ * the program its accreditation. A model that flags them as waste without
+ * saying they are required invites exactly the wrong conclusion.
+ *
+ * SOURCE AND CAVEAT. The categories below follow the ACGME Program Requirements
+ * for Graduate Medical Education in Anesthesiology (see the bibliography entry).
+ * The minimums are expressed in 4-week blocks across the whole program and are
+ * a STARTING POINT TO VERIFY, not a compliance determination — the requirements
+ * are revised, several are stated as case minimums rather than durations, and
+ * some programs satisfy them through longitudinal experience rather than whole
+ * blocks. Check the current document, and edit these to match it.
+ *
+ * // TODO(source) — reconcile each minimum against the current Program
+ * // Requirements revision before presenting any of this as a compliance check.
+ */
+export interface AccreditationRequirement {
+  id: string;
+  label: string;
+  /** Rotation ids that count toward this requirement. */
+  satisfiedBy: string[];
+  /** Minimum 4-week blocks across the whole program. */
+  minBlocks: number;
+  note?: string;
+}
+
+export const ACGME_ANESTHESIOLOGY_REQUIREMENTS: AccreditationRequirement[] = [
+  {
+    id: "obstetric",
+    label: "Obstetric anesthesia",
+    satisfiedBy: ["ob_anes"],
+    minBlocks: 2,
+  },
+  {
+    id: "pediatric",
+    label: "Pediatric anesthesia",
+    satisfiedBy: ["ped_anes", "peds_gs_anes"],
+    minBlocks: 2,
+    note: "Frequently served at a children's hospital outside the sponsoring group, which is why it shows up as leakage that cannot be removed.",
+  },
+  {
+    id: "cardiac",
+    label: "Cardiothoracic anesthesia",
+    satisfiedBy: ["ct_anes", "ct_vasc"],
+    minBlocks: 2,
+  },
+  {
+    id: "neuro",
+    label: "Neuroanesthesia",
+    satisfiedBy: ["neuro_anes"],
+    minBlocks: 2,
+  },
+  {
+    id: "criticalcare",
+    label: "Critical care medicine",
+    satisfiedBy: ["ccm_sicu"],
+    minBlocks: 4,
+    note: "Delivers value to the host ICU rather than anesthesia coverage, so it reads as non-productive in the block flags while being required.",
+  },
+  {
+    id: "pain_acute",
+    label: "Acute pain / regional anesthesia",
+    satisfiedBy: ["acute_pain_ra"],
+    minBlocks: 3,
+  },
+  {
+    id: "pain_chronic",
+    label: "Chronic pain medicine",
+    satisfiedBy: ["chronic_pain"],
+    minBlocks: 1,
+  },
+  {
+    id: "preanesthesia",
+    label: "Preanesthesia evaluation / PACU",
+    satisfiedBy: ["preop_pacu"],
+    minBlocks: 1,
+  },
+];
+
+export interface RequirementStatus extends AccreditationRequirement {
+  /** Blocks scheduled across all four years, wherever they are served. */
+  scheduledBlocks: number;
+  met: boolean;
+}
+
+/**
+ * Check a schedule against the accreditation minimums. Blocks count wherever
+ * they are served: a requirement met at a participating site is still met, even
+ * though it earns the sponsoring group no coverage.
+ */
+export function checkAccreditation(
+  schedule: BlockSchedule,
+  requirements: AccreditationRequirement[] = ACGME_ANESTHESIOLOGY_REQUIREMENTS
+): RequirementStatus[] {
+  const counts = new Map<string, number>();
+  for (const year of RESIDENCY_YEARS) {
+    for (const block of schedule[year] ?? []) {
+      counts.set(block.rotationId, (counts.get(block.rotationId) ?? 0) + 1);
+    }
+  }
+  return requirements.map((req) => {
+    const scheduledBlocks = req.satisfiedBy.reduce(
+      (sum, id) => sum + (counts.get(id) ?? 0),
+      0
+    );
+    return { ...req, scheduledBlocks, met: scheduledBlocks >= req.minBlocks };
+  });
+}
+
+/** One warning per unmet requirement, naming the shortfall. */
+export function accreditationWarnings(
+  schedule: BlockSchedule,
+  requirements?: AccreditationRequirement[]
+): string[] {
+  return checkAccreditation(schedule, requirements)
+    .filter((r) => !r.met)
+    .map(
+      (r) =>
+        `Accreditation: ${r.label} has ${r.scheduledBlocks} of ${r.minBlocks} required ` +
+        `blocks scheduled across the four years. Verify against the current ACGME ` +
+        `Program Requirements — this model's minimums are a starting point, not a ` +
+        `compliance determination.`
+    );
 }

@@ -6,6 +6,8 @@ import {
   SCENARIO_LABELS,
   YEAR_LABELS,
   coverageFteForYear,
+  EXAMPLE_PROGRAMS,
+  checkAccreditation,
   crnaCostOfCoverage,
   deriveSchedule,
   effectivePra,
@@ -41,12 +43,17 @@ import { restoreInputs } from "./persist";
  * at every depth, so a payload written before a field existed picks up that
  * field's default instead of leaving it undefined.
  *
+ * A schedule is the case that needs the bump: block site IDs and the site list
+ * are each restorable on their own but meaningless apart, so a save whose blocks
+ * point at sites the current list does not contain has to be retired rather than
+ * half-restored.
+ *
  * That robustness is not a nicety. Arithmetic on a missing field yields NaN, and
  * every figure in this interface descends from these inputs, so one absent
  * number renders the whole model as "$NaN" with no error and no user-visible
  * way to recover. See persist.ts.
  */
-const STORAGE_KEY = "anesthesia-residency-model-inputs-v6";
+const STORAGE_KEY = "anesthesia-residency-model-inputs-v7";
 
 function loadInitial(): ModelInputs {
   try {
@@ -76,7 +83,11 @@ export function App() {
   const tornadoBars = React.useMemo(() => tornado(inputs), [inputs]);
   // The block schedule is authoritative; these are what it implies.
   const scheduleDerived = React.useMemo(
-    () => deriveSchedule(inputs.blockSchedule),
+    () => deriveSchedule(inputs.blockSchedule, inputs.sites),
+    [inputs.blockSchedule, inputs.sites]
+  );
+  const requirements = React.useMemo(
+    () => checkAccreditation(inputs.blockSchedule),
     [inputs.blockSchedule]
   );
   const demand = staffedLocationDemand(inputs);
@@ -805,6 +816,40 @@ export function App() {
             defaultOpen={false}
           >
             <div className="callout">
+              <strong>Load an example:</strong>{" "}
+              {EXAMPLE_PROGRAMS.map((ex) => (
+                <button
+                  key={ex.id}
+                  type="button"
+                  className="link-btn"
+                  title={ex.description}
+                  onClick={() =>
+                    patch({ sites: ex.sites, blockSchedule: ex.blockSchedule })
+                  }
+                >
+                  {ex.label}
+                </button>
+              ))}{" "}
+              — a real diagram to edit, not a default. The shipped schedule is generic.
+            </div>
+            <div className="callout">
+              <strong>ACGME required experiences.</strong> Blocks count wherever they are
+              served, so a requirement met at a participating site is still met even
+              though it earns the sponsoring group no coverage — which is exactly why
+              some flagged blocks cannot simply be removed.
+              <ul className="req-list">
+                {requirements.map((r) => (
+                  <li key={r.id} className={r.met ? "met" : "unmet"}>
+                    {r.label}: {r.scheduledBlocks} of {r.minBlocks} blocks
+                    {r.met ? "" : " — short"}
+                    {r.note ? <span className="req-note"> {r.note}</span> : null}
+                  </li>
+                ))}
+              </ul>
+              Minimums are a starting point to verify against the current Program
+              Requirements, not a compliance determination.
+            </div>
+            <div className="callout">
               This is the model's evidence base, not another set of dials. The
               sponsor-site share, on-anesthesia share, and IME-countable share underneath
               every coverage figure are <strong>derived from these blocks</strong> — a
@@ -816,6 +861,7 @@ export function App() {
                 <h4>{YEAR_LABELS[year]}</h4>
                 <BlockScheduleEditor
                   year={year}
+                  sites={inputs.sites}
                   blocks={inputs.blockSchedule[year]}
                   onChange={(updated) =>
                     patch({

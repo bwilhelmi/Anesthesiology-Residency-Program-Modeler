@@ -30,7 +30,12 @@ import {
   TEACHING_ANESTHESIA_CONCURRENCY_LIMIT,
 } from "./constants";
 import { gmeFundingTimeline, medicaidGme } from "./gme";
-import { allianceProviders, applyScheduleToClinical, scheduleWarnings } from "./schedule";
+import {
+  accreditationWarnings,
+  allianceProviders,
+  applyScheduleToClinical,
+  scheduleWarnings,
+} from "./schedule";
 import type { GmeYearFte, GmeYearFunding } from "./gme";
 import {
   annualProgramSupportCost,
@@ -608,7 +613,8 @@ export function runModel(rawInputs: ModelInputs): ModelResult {
     steadyStateCosts: steadyState.costs,
     warnings: dedupe([
       ...years.flatMap((y) => y.warnings),
-      ...scheduleWarnings(inputs.blockSchedule),
+      ...scheduleWarnings(inputs.blockSchedule, inputs.sites),
+      ...accreditationWarnings(inputs.blockSchedule),
       ...allianceWarnings(inputs),
     ]),
   };
@@ -678,7 +684,7 @@ function sum(xs: number[]): number {
  * invent.
  */
 function allianceWarnings(inputs: ModelInputs): string[] {
-  const providers = allianceProviders(inputs.blockSchedule);
+  const providers = allianceProviders(inputs.blockSchedule, inputs.sites);
   if (providers.length < 2) return [];
   return [
     `This program is sponsored by an affiliated group of ${providers.length} Medicare ` +

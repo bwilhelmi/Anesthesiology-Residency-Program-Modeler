@@ -1,13 +1,13 @@
 import {
   BLOCKS_PER_YEAR,
   ROTATIONS,
-  SITES,
   YEAR_LABELS,
   deriveYear,
   rotation,
   site,
   type Block,
   type ResidencyYear,
+  type TrainingSite,
 } from "../../model";
 import { percent } from "../format";
 
@@ -22,13 +22,15 @@ import { percent } from "../format";
 export function BlockScheduleEditor({
   year,
   blocks,
+  sites,
   onChange,
 }: {
   year: ResidencyYear;
   blocks: Block[];
+  sites: TrainingSite[];
   onChange: (blocks: Block[]) => void;
 }) {
-  const derived = deriveYear(blocks);
+  const derived = deriveYear(blocks, sites);
 
   const patch = (index: number, change: Partial<Block>) =>
     onChange(blocks.map((b, i) => (i === index ? { ...b, ...change } : b)));
@@ -47,7 +49,7 @@ export function BlockScheduleEditor({
       <ol className="block-list">
         {blocks.map((block, i) => {
           const def = rotation(block.rotationId);
-          const s = site(block.siteId);
+          const s = site(block.siteId, sites);
           const productive = def?.kind === "anesthesia" && (s?.sponsorShare ?? 0) > 0;
           return (
             <li key={i} className={`block-row ${productive ? "" : "unproductive"}`}>
@@ -72,7 +74,7 @@ export function BlockScheduleEditor({
                 value={block.siteId}
                 onChange={(e) => patch(i, { siteId: e.target.value })}
               >
-                {SITES.map((x) => (
+                {sites.map((x: TrainingSite) => (
                   <option key={x.id} value={x.id}>
                     {x.label}
                   </option>

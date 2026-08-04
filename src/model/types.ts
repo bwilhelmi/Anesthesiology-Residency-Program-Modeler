@@ -14,7 +14,7 @@
  * produce a defensible estimate.
  */
 
-import type { BlockSchedule } from "./schedule";
+import type { BlockSchedule, TrainingSite } from "./schedule";
 
 /** The four post-graduate years of a US anesthesiology residency. */
 export type ResidencyYear = "PGY1" | "PGY2" | "PGY3" | "PGY4";
@@ -489,6 +489,12 @@ export interface ModelInputs {
    * values stored alongside are ignored. See schedule.ts.
    */
   blockSchedule: BlockSchedule;
+  /**
+   * The program's training sites. Data rather than a fixed list, because the
+   * only universal thing about a site is whether its blocks accrue to whoever
+   * pays for the program — see schedule.ts.
+   */
+  sites: TrainingSite[];
 }
 
 /* ------------------------------------------------------------------ */

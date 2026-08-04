@@ -1,193 +1,231 @@
 import { describe, it, expect } from "vitest";
 import { DEFAULT_BLOCK_SCHEDULE, DEFAULT_INPUTS } from "./constants";
+import { CREIGHTON_PHOENIX, EXAMPLE_PROGRAMS } from "./examples";
 import {
+  ACGME_ANESTHESIOLOGY_REQUIREMENTS,
   BLOCKS_PER_YEAR,
+  DEFAULT_SITES,
+  ROTATIONS,
+  accreditationWarnings,
   allianceProviders,
   applyScheduleToClinical,
   blk,
+  checkAccreditation,
   deriveSchedule,
   deriveYear,
   rotation,
   scheduleWarnings,
   site,
-  ROTATIONS,
-  SITES,
 } from "./schedule";
 import { runModel } from "./model";
 import { RESIDENCY_YEARS } from "./types";
 
-describe("Block schedule: the diagram as transcribed", () => {
+describe("The shipped schedule is generic", () => {
   it("has 13 blocks in every training year", () => {
     for (const year of RESIDENCY_YEARS) {
       expect(DEFAULT_BLOCK_SCHEDULE[year]).toHaveLength(BLOCKS_PER_YEAR);
     }
+    expect(scheduleWarnings(DEFAULT_BLOCK_SCHEDULE, DEFAULT_SITES)).toEqual([]);
   });
 
-  it("uses only rotations and sites that are on the menu", () => {
+  it("names no real hospital, so it fits any program", () => {
+    // The generic sites describe ROLES — sponsor, satellite, alliance partner,
+    // outside participant — not institutions. A real diagram is loaded as an
+    // example and edited; baking one in would quietly make everyone else wrong.
+    for (const s of DEFAULT_SITES) {
+      expect(s.ccn).toBeNull();
+      expect(s.label).not.toMatch(/valleywise|joseph|barrow|phoenix|creighton/i);
+    }
     for (const year of RESIDENCY_YEARS) {
       for (const block of DEFAULT_BLOCK_SCHEDULE[year]) {
-        expect(rotation(block.rotationId), `${year} ${block.rotationId}`).toBeDefined();
-        expect(site(block.siteId), `${year} ${block.siteId}`).toBeDefined();
+        expect(site(block.siteId, DEFAULT_SITES), block.siteId).toBeDefined();
+        expect(rotation(block.rotationId), block.rotationId).toBeDefined();
       }
     }
-    expect(scheduleWarnings(DEFAULT_BLOCK_SCHEDULE)).toEqual([]);
   });
 
-  it("distinguishes providers by CCN, and membership by the alliance", () => {
-    // Two questions, two answers. Valleywise Peoria shares Valleywise's CCN, so
-    // it is the SAME PROVIDER. St. Joseph's is a different provider entirely —
-    // its own CCN, cap, and per-resident amount — but it is inside the
-    // sponsoring alliance, so its blocks are not lost to a stranger.
-    expect(site("site1")!.ccn).toBe(site("site1p")!.ccn);
-    expect(site("site2")!.ccn).not.toBe(site("site1")!.ccn);
-    expect(site("site2")!.ccn).toBe(site("site2b")!.ccn);
-
-    for (const id of ["site1", "site1p", "site2", "site2b"]) {
-      expect(site(id)!.inAlliance, id).toBe(true);
-      expect(site(id)!.sponsorShare, id).toBe(1);
+  it("satisfies the accreditation minimums it ships with", () => {
+    // A default that could not be accredited would be a strange thing to hand
+    // someone as a starting point.
+    for (const status of checkAccreditation(DEFAULT_BLOCK_SCHEDULE)) {
+      expect(
+        status.met,
+        `${status.label}: ${status.scheduledBlocks}/${status.minBlocks}`
+      ).toBe(true);
     }
-    // Phoenix Children's is outside it, and time there does leak.
-    expect(site("site3")!.inAlliance).toBe(false);
-    expect(site("site3")!.sponsorShare).toBe(0);
+    expect(accreditationWarnings(DEFAULT_BLOCK_SCHEDULE)).toEqual([]);
+  });
+
+  it("puts the pediatric requirement outside the group, as most programs must", () => {
+    // The commonest real source of unavoidable leakage: a sponsor without the
+    // paediatric case mix to teach it.
+    const pedsAway = RESIDENCY_YEARS.flatMap((y) =>
+      DEFAULT_BLOCK_SCHEDULE[y].filter(
+        (b) => b.rotationId === "ped_anes" && b.siteId === "participating"
+      )
+    );
+    expect(pedsAway.length).toBeGreaterThanOrEqual(2);
+    expect(
+      deriveSchedule(DEFAULT_BLOCK_SCHEDULE, DEFAULT_SITES).PGY3.sponsorSiteShare
+    ).toBeLessThan(1);
+  });
+});
+
+describe("Accreditation requirements", () => {
+  it("counts a requirement met wherever it is served", () => {
+    const away = {
+      PGY1: [],
+      PGY2: [],
+      PGY3: Array.from({ length: 2 }, () => blk("ped_anes", "participating", 0.3)),
+      PGY4: [],
+    };
+    const peds = checkAccreditation(away).find((r) => r.id === "pediatric")!;
+    // It earns the sponsoring group nothing and is still required and satisfied.
+    expect(peds.scheduledBlocks).toBe(2);
+    expect(peds.met).toBe(true);
+    expect(deriveYear(away.PGY3, DEFAULT_SITES).sponsorBlocks).toBe(0);
+  });
+
+  it("reports a shortfall with the count, not just a flag", () => {
+    const thin = {
+      PGY1: [],
+      PGY2: [],
+      PGY3: [blk("ob_anes", "sponsor", 0.02)],
+      PGY4: [],
+    };
+    const ob = checkAccreditation(thin).find((r) => r.id === "obstetric")!;
+    expect(ob.scheduledBlocks).toBe(1);
+    expect(ob.met).toBe(false);
+    const warning = accreditationWarnings(thin).find((w) => w.includes("Obstetric"));
+    expect(warning).toContain("1 of 2");
+    // …and says what it is not.
+    expect(warning).toContain("not a compliance determination");
+  });
+
+  it("routes every requirement to rotations that exist", () => {
+    const ids = new Set(ROTATIONS.map((r) => r.id));
+    for (const req of ACGME_ANESTHESIOLOGY_REQUIREMENTS) {
+      expect(req.satisfiedBy.length).toBeGreaterThan(0);
+      for (const id of req.satisfiedBy) {
+        expect(ids.has(id), `${req.id} -> ${id}`).toBe(true);
+      }
+      expect(req.minBlocks).toBeGreaterThan(0);
+    }
+  });
+
+  it("surfaces a shortfall through the model's warnings", () => {
+    const thin = {
+      ...DEFAULT_INPUTS,
+      blockSchedule: {
+        ...DEFAULT_BLOCK_SCHEDULE,
+        PGY3: Array.from({ length: BLOCKS_PER_YEAR }, () => blk("anes", "sponsor", 0.3)),
+      },
+    };
+    expect(runModel(thin).warnings.some((w) => /^Accreditation:/.test(w))).toBe(true);
   });
 });
 
 describe("Deriving the clinical fractions", () => {
-  const derived = deriveSchedule(DEFAULT_BLOCK_SCHEDULE);
-
-  it("keeps the senior years mostly inside the alliance", () => {
-    // Read against a single hospital this schedule looks alarming — a CA-2 is
-    // at Valleywise for only 3 of 13 blocks. Read against the sponsoring group
-    // that actually pays for the program, most of it stays home: what leaves is
-    // the pediatric time at Phoenix Children's.
-    for (const year of RESIDENCY_YEARS) {
-      expect(derived[year].sponsorSiteShare).toBeGreaterThan(0.8);
-    }
-    // The CA-2 and CA-3 pediatric blocks are the real leakage, two each.
-    expect(derived.PGY3.sponsorBlocks).toBeCloseTo(11, 6);
-    expect(derived.PGY4.sponsorBlocks).toBeGreaterThan(10);
-  });
-
   it("splits a part-research block rather than counting it whole", () => {
-    // NORA/RS is 50% research: half an anesthesia block, half not.
-    const nora = deriveYear([blk("nora_rs", "site1", 0.9, 0.5)]);
+    const nora = deriveYear([blk("nora_rs", "sponsor", 0.9, 0.5)], DEFAULT_SITES);
     expect(nora.sponsorAnesthesiaBlocks).toBeCloseTo(0.5, 10);
     expect(nora.nonProductive[0].blocks).toBeCloseTo(0.5, 10);
   });
 
   it("credits nothing for a research block", () => {
-    const research = deriveYear([blk("research", "site1", 0, 1)]);
+    const research = deriveYear([blk("research", "sponsor", 0, 1)], DEFAULT_SITES);
     expect(research.sponsorAnesthesiaBlocks).toBe(0);
-    expect(research.fractionOnAnesthesia).toBe(0);
     expect(research.imeCountableShare).toBe(0);
     expect(research.nonProductive[0].reason).toBe("not patient care");
   });
 
-  it("credits nothing to the sponsor for anesthesia at another provider", () => {
-    const away = deriveYear([blk("ped_anes", "site3", 0.35)]);
+  it("credits nothing for anesthesia at a provider outside the group", () => {
+    const away = deriveYear([blk("ped_anes", "participating", 0.35)], DEFAULT_SITES);
     expect(away.sponsorBlocks).toBe(0);
-    expect(away.sponsorAnesthesiaBlocks).toBe(0);
     expect(away.nonProductive[0].reason).toBe("anesthesia at another provider");
   });
 
-  it("flags every block that earns the sponsor no anesthesia care", () => {
-    for (const year of RESIDENCY_YEARS) {
-      const flagged = derived[year].nonProductive;
-      expect(flagged.length).toBeGreaterThan(0);
-      for (const item of flagged) expect(item.reason).toBeTruthy();
-    }
-    // The intern year is almost entirely non-productive even inside the
-    // alliance: it is a clinical base year, and only two of its blocks are
-    // anesthesia at all.
-    expect(derived.PGY1.sponsorAnesthesiaBlocks).toBeLessThan(2.5);
-  });
-
   it("derives zero rather than NaN from an empty year", () => {
-    const empty = deriveYear([]);
+    const empty = deriveYear([], DEFAULT_SITES);
     expect(empty.sponsorSiteShare).toBe(0);
     expect(empty.fractionOnAnesthesia).toBe(0);
     expect(empty.imeCountableShare).toBe(0);
   });
 
-  it("classifies every rotation and site on the menu", () => {
-    for (const r of ROTATIONS) expect(r.label.length).toBeGreaterThan(0);
-    for (const s of SITES) {
-      expect(s.sponsorShare).toBeGreaterThanOrEqual(0);
-      expect(s.sponsorShare).toBeLessThanOrEqual(1);
-    }
-  });
-});
-
-describe("The schedule overrides asserted fractions", () => {
-  it("replaces the stored clinical fractions wherever a schedule exists", () => {
-    const resolved = applyScheduleToClinical(DEFAULT_INPUTS);
-    const derived = deriveSchedule(DEFAULT_INPUTS.blockSchedule);
+  it("replaces the stored clinical fractions, idempotently", () => {
+    const once = applyScheduleToClinical(DEFAULT_INPUTS);
+    const derived = deriveSchedule(DEFAULT_INPUTS.blockSchedule, DEFAULT_INPUTS.sites);
     for (const year of RESIDENCY_YEARS) {
-      expect(resolved.clinical[year].sponsorSiteShare).toBeCloseTo(
+      expect(once.clinical[year].sponsorSiteShare).toBeCloseTo(
         derived[year].sponsorSiteShare,
         10
       );
-      // …and leaves everything else alone.
-      expect(resolved.clinical[year].dutyHoursPerWeek).toBe(
+      expect(once.clinical[year].dutyHoursPerWeek).toBe(
         DEFAULT_INPUTS.clinical[year].dutyHoursPerWeek
       );
     }
-  });
-
-  it("is idempotent, so resolving twice cannot compound", () => {
-    const once = applyScheduleToClinical(DEFAULT_INPUTS);
-    const twice = applyScheduleToClinical(once);
-    expect(twice.clinical).toEqual(once.clinical);
-  });
-
-  it("drives the model: keeping residents home would transform the answer", () => {
-    const asScheduled = runModel(DEFAULT_INPUTS).summary.npv;
-    const ifTheyStayedHome = runModel({
-      ...DEFAULT_INPUTS,
-      blockSchedule: Object.fromEntries(
-        RESIDENCY_YEARS.map((year) => [
-          year,
-          Array.from({ length: BLOCKS_PER_YEAR }, () => blk("anes", "site1", 0.2)),
-        ])
-      ) as typeof DEFAULT_INPUTS.blockSchedule,
-    }).summary.npv;
-
-    expect(ifTheyStayedHome).toBeGreaterThan(asScheduled);
-    // Not a suggestion that they should — the rotations are accreditation
-    // requirements. It is the size of what the sponsor is funding and not
-    // receiving, which is the question the block diagram exists to answer.
+    expect(applyScheduleToClinical(once).clinical).toEqual(once.clinical);
   });
 });
 
-describe("Affiliated group", () => {
-  it("names the member providers the schedule actually uses", () => {
-    // Valleywise (030253) and St. Joseph's (039598). Phoenix Children's is
-    // outside the alliance and Peoria shares Valleywise's CCN, so neither adds
-    // a provider.
-    expect(allianceProviders(DEFAULT_BLOCK_SCHEDULE)).toEqual(["030253", "039598"]);
+describe("Example programs", () => {
+  it("ships real diagrams as examples, never as the default", () => {
+    expect(EXAMPLE_PROGRAMS.length).toBeGreaterThan(0);
+    for (const ex of EXAMPLE_PROGRAMS) {
+      for (const year of RESIDENCY_YEARS) {
+        expect(ex.blockSchedule[year], `${ex.id} ${year}`).toHaveLength(BLOCKS_PER_YEAR);
+      }
+      expect(scheduleWarnings(ex.blockSchedule, ex.sites)).toEqual([]);
+    }
+    expect(DEFAULT_INPUTS.blockSchedule).not.toEqual(CREIGHTON_PHOENIX.blockSchedule);
   });
 
-  it("says the figures belong to the group, not to a member", () => {
-    const warning = runModel(DEFAULT_INPUTS).warnings.find((w) =>
-      /affiliated group/.test(w)
+  it("distinguishes providers by CCN and membership by the alliance", () => {
+    const { sites } = CREIGHTON_PHOENIX;
+    // Two different questions. The satellite shares the sponsor's CCN, so it is
+    // the SAME provider; the partner has its own CCN but is inside the group.
+    expect(site("site1", sites)!.ccn).toBe(site("site1p", sites)!.ccn);
+    expect(site("site2", sites)!.ccn).not.toBe(site("site1", sites)!.ccn);
+    expect(site("site2", sites)!.inAlliance).toBe(true);
+    expect(site("site3", sites)!.inAlliance).toBe(false);
+  });
+
+  it("reads very differently against one hospital than against the group", () => {
+    const { sites, blockSchedule } = CREIGHTON_PHOENIX;
+    const asGroup = deriveSchedule(blockSchedule, sites);
+    const asOneHospital = deriveSchedule(
+      blockSchedule,
+      sites.map((s) =>
+        s.ccn === "030253" ? s : { ...s, sponsorShare: 0, inAlliance: false }
+      )
     );
+    // The same schedule, the same senior year: >0.8 to the group, <0.3 to the
+    // sponsor alone. Which is right depends entirely on who is asking.
+    expect(asGroup.PGY3.sponsorSiteShare).toBeGreaterThan(0.8);
+    expect(asOneHospital.PGY3.sponsorSiteShare).toBeLessThan(0.3);
+  });
+
+  it("names the member providers a schedule actually uses", () => {
+    expect(
+      allianceProviders(CREIGHTON_PHOENIX.blockSchedule, CREIGHTON_PHOENIX.sites)
+    ).toEqual(["030253", "039598"]);
+    // The generic default has no CCNs entered, so it claims no providers.
+    expect(allianceProviders(DEFAULT_BLOCK_SCHEDULE, DEFAULT_SITES)).toEqual([]);
+  });
+
+  it("warns that a multi-provider group's figures are not one member's", () => {
+    const loaded = {
+      ...DEFAULT_INPUTS,
+      sites: CREIGHTON_PHOENIX.sites,
+      blockSchedule: CREIGHTON_PHOENIX.blockSchedule,
+    };
+    const warning = runModel(loaded).warnings.find((w) => /affiliated group/.test(w));
     expect(warning).toBeDefined();
     expect(warning).toContain("030253");
     expect(warning).toContain("039598");
-  });
-
-  it("stays quiet for a single-provider program", () => {
-    const onlyValleywise = Object.fromEntries(
-      RESIDENCY_YEARS.map((year) => [
-        year,
-        Array.from({ length: BLOCKS_PER_YEAR }, () => blk("anes", "site1", 0.2)),
-      ])
-    ) as typeof DEFAULT_BLOCK_SCHEDULE;
-    expect(allianceProviders(onlyValleywise)).toEqual(["030253"]);
+    // A single-provider program says nothing of the kind.
     expect(
-      runModel({ ...DEFAULT_INPUTS, blockSchedule: onlyValleywise }).warnings.some((w) =>
-        /affiliated group/.test(w)
-      )
+      runModel(DEFAULT_INPUTS).warnings.some((w) => /affiliated group/.test(w))
     ).toBe(false);
   });
 });

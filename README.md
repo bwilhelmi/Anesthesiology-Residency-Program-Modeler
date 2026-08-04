@@ -174,11 +174,33 @@ members pool FTE cap room and share the program's costs, and a block at a member
 hospital stays inside the sponsoring unit. Each member still carries its own
 CCN, cap, per-resident amount and IME base.
 
+### The block schedule, and what accreditation requires
+
 These are not free-floating fractions. They are **derived from the block
 schedule** — 13 blocks of 4 weeks per training year, each a rotation at a site,
 with its outpatient and research shares. Edit the blocks; the fractions follow.
 Blocks that earn the sponsoring group no anesthesia care, research above all,
 are flagged individually rather than averaged away.
+
+**A flagged block is not necessarily a wasteful one.** The model checks the
+schedule against the ACGME's required clinical experiences and shows the count
+against each minimum, because the two readings have to be held together: the
+pediatric months usually leak coverage to a children's hospital precisely
+because the sponsor has no pediatric case mix, and deleting them would cost the
+program its accreditation. A requirement is counted as met wherever it is
+served.
+
+The shipped minimums follow the ACGME Program Requirements for Graduate Medical
+Education in Anesthesiology and are **a starting point to verify, not a
+compliance determination** — the requirements are revised, several are stated as
+case minimums rather than durations, and some programs satisfy them
+longitudinally. Edit them to match the current document.
+
+The default schedule is **generic**, built to satisfy those minimums at
+role-named sites ("sponsor hospital", "alliance partner", "participating site").
+Real diagrams ship as loadable examples, not as defaults — one program's
+schedule as everyone's starting point would quietly make everyone else's answer
+wrong.
 
 ---
 

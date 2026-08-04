@@ -196,32 +196,46 @@ const amount = (items: { key: string; amount: number }[], key: string): number =
  * original asserted fractions (0.85, 0.90) turn out to have been roughly right
  * for the alliance while badly wrong for a single hospital — which is exactly
  * the kind of coincidence that keeps a broken model looking healthy.
+ *
+ * UPDATED AGAIN (the default is generic again): one program's block diagram had
+ * become the shipped default, which would quietly make every other program's
+ * answer wrong. The default is now a generic four-year schedule built to satisfy
+ * the accreditation minimums, at role-named sites with no CCNs; the real diagram
+ * moved to examples.ts to be loaded and edited. These frozen numbers therefore
+ * describe the GENERIC program and are not a statement about anyone's:
+ *
+ *   NPV           +$15,081,458  ->  +$18,168,423
+ *   breakeven          year 4   ->      year 3
+ *
+ * The generic schedule keeps its residents closer to home than the real one
+ * does, which is why it reads better. That is a fact about the placeholder, not
+ * a finding — and a reason to load a real diagram before believing any of it.
  * ------------------------------------------------------------------------ */
 describe("Frozen default program (P7.3)", () => {
   const r = runModel(DEFAULT_INPUTS);
 
   it("reports the frozen summary", () => {
-    expect(r.summary.nominalCumulativeNet).toBeCloseTo(24_519_764.18, 1);
-    expect(r.summary.npv).toBeCloseTo(15_081_458.75, 1);
-    expect(r.summary.breakevenYear).toBe(4);
-    expect(r.summary.steadyStateAnnualNet).toBeCloseTo(3_475_046.23, 1);
+    expect(r.summary.nominalCumulativeNet).toBeCloseTo(29_419_940.84, 1);
+    expect(r.summary.npv).toBeCloseTo(18_168_423.28, 1);
+    expect(r.summary.breakevenYear).toBe(3);
+    expect(r.summary.steadyStateAnnualNet).toBeCloseTo(4_143_555.54, 1);
   });
 
   it("reports the frozen mature year", () => {
     expect(r.steadyState.programYear).toBe(6);
     expect(r.steadyState.totalResidents).toBeCloseTo(23.2896, 4);
 
-    expect(amount(r.steadyState.benefits, "dgme")).toBeCloseTo(1_145_198, 0);
-    expect(amount(r.steadyState.benefits, "ime")).toBeCloseTo(2_019_454, 0);
-    expect(amount(r.steadyState.benefits, "labor")).toBeCloseTo(4_601_576, 0);
-    expect(amount(r.steadyState.benefits, "offservice")).toBeCloseTo(830_027, 0);
+    expect(amount(r.steadyState.benefits, "dgme")).toBeCloseTo(1_119_854, 0);
+    expect(amount(r.steadyState.benefits, "ime")).toBeCloseTo(2_104_095, 0);
+    expect(amount(r.steadyState.benefits, "labor")).toBeCloseTo(5_726_956, 0);
+    expect(amount(r.steadyState.benefits, "offservice")).toBeCloseTo(611_975, 0);
     expect(amount(r.steadyState.benefits, "retention")).toBeCloseTo(785_592, 0);
 
     expect(amount(r.steadyState.costs, "residentsalary")).toBeCloseTo(2_591_901, 0);
     expect(amount(r.steadyState.costs, "support")).toBeCloseTo(1_368_860, 0);
     expect(amount(r.steadyState.costs, "perresident")).toBeCloseTo(715_473, 0);
-    expect(amount(r.steadyState.costs, "efficiency")).toBeCloseTo(117_234, 0);
-    expect(amount(r.steadyState.costs, "supervision")).toBeCloseTo(1_113_331, 0);
+    expect(amount(r.steadyState.costs, "efficiency")).toBeCloseTo(143_070, 0);
+    expect(amount(r.steadyState.costs, "supervision")).toBeCloseTo(1_385_612, 0);
   });
 
   it("keeps line items summing to the reported totals in every year", () => {
@@ -291,7 +305,7 @@ describe("Property: NPV is non-increasing in the discount rate", () => {
     const allSponsorAnesthesia = Object.fromEntries(
       RESIDENCY_YEARS.map((year) => [
         year,
-        Array.from({ length: 13 }, () => blk("anes", "site1", 0.2)),
+        Array.from({ length: 13 }, () => blk("anes", "sponsor", 0.2)),
       ])
     ) as ModelInputs["blockSchedule"];
     const programs: ModelInputs[] = [

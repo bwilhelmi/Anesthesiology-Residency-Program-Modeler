@@ -4,6 +4,7 @@ export * from "./gme";
 export * from "./clinical";
 export * from "./program";
 export * from "./schedule";
+export * from "./examples";
 export * from "./workforce";
 export * from "./sensitivity";
 export * from "./model";
