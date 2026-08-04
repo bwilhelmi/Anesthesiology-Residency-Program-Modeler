@@ -5,10 +5,15 @@ import {
   SCENARIOS,
   SCENARIO_LABELS,
   YEAR_LABELS,
+  coverageFteForYear,
+  EXAMPLE_PROGRAMS,
+  checkAccreditation,
   crnaCostOfCoverage,
+  deriveSchedule,
   effectivePra,
   incrementalSupervisionCostPerLocation,
   runModel,
+  sponsorAnesthesiaHours,
   staffedLocationDemand,
   steadyStateCoverageFte,
   tornado,
@@ -27,31 +32,36 @@ import { Results } from "./components/Results";
 import { RegionPicker } from "./components/RegionPicker";
 import { HospitalPicker } from "./components/HospitalPicker";
 import { Bibliography } from "./components/References";
+import { BlockScheduleEditor } from "./components/BlockSchedule";
 import { currency, number, percent } from "./format";
+import { restoreInputs } from "./persist";
 
 /**
- * Bumped whenever the input shape changes incompatibly. The restore below is a
- * shallow merge, so a stale payload reinstates an entire top-level object —
- * `salaries`, `gme` — missing whatever fields have been added since, and the
- * defaults for those never apply. That failure is SILENT: the model keeps
- * computing, just without the new term. A v3 save, for instance, carries no
- * crnaWorkedHoursPerPaidFte, so the worked-hours backfill quietly does not
- * apply and the labor benefit reads 11.8% low.
+ * Bump only for a change that makes old saves MEANINGLESS rather than merely
+ * incomplete — a field whose semantics changed under the same name. Additive
+ * changes need no bump: restoreInputs() merges defaults underneath saved values
+ * at every depth, so a payload written before a field existed picks up that
+ * field's default instead of leaving it undefined.
  *
- * ANY new field on a nested input object therefore needs a key bump here, in
- * the same commit. Retiring old saves is the honest failure mode; half of a
- * model is worse than a clean reset.
+ * A schedule is the case that needs the bump: block site IDs and the site list
+ * are each restorable on their own but meaningless apart, so a save whose blocks
+ * point at sites the current list does not contain has to be retired rather than
+ * half-restored.
+ *
+ * That robustness is not a nicety. Arithmetic on a missing field yields NaN, and
+ * every figure in this interface descends from these inputs, so one absent
+ * number renders the whole model as "$NaN" with no error and no user-visible
+ * way to recover. See persist.ts.
  */
-const STORAGE_KEY = "anesthesia-residency-model-inputs-v4";
+const STORAGE_KEY = "anesthesia-residency-model-inputs-v7";
 
 function loadInitial(): ModelInputs {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return { ...DEFAULT_INPUTS, ...JSON.parse(raw) };
+    return restoreInputs(DEFAULT_INPUTS, localStorage.getItem(STORAGE_KEY));
   } catch {
-    /* ignore */
+    // localStorage itself can throw (disabled, quota, privacy mode).
+    return DEFAULT_INPUTS;
   }
-  return DEFAULT_INPUTS;
 }
 
 export function App() {
@@ -71,6 +81,15 @@ export function App() {
   const result = React.useMemo(() => runModel(inputs), [inputs]);
   // One model run per variable end — cheap, but not free, so memoize it.
   const tornadoBars = React.useMemo(() => tornado(inputs), [inputs]);
+  // The block schedule is authoritative; these are what it implies.
+  const scheduleDerived = React.useMemo(
+    () => deriveSchedule(inputs.blockSchedule, inputs.sites),
+    [inputs.blockSchedule, inputs.sites]
+  );
+  const requirements = React.useMemo(
+    () => checkAccreditation(inputs.blockSchedule),
+    [inputs.blockSchedule]
+  );
   const demand = staffedLocationDemand(inputs);
   const coverage = steadyStateCoverageFte(inputs);
   // The presets patch the current inputs rather than replacing them, so a
@@ -792,6 +811,69 @@ export function App() {
           </Section>
 
           <Section
+            title="Block schedule"
+            subtitle="13 blocks of 4 weeks, per training year"
+            defaultOpen={false}
+          >
+            <div className="callout">
+              <strong>Load an example:</strong>{" "}
+              {EXAMPLE_PROGRAMS.map((ex) => (
+                <button
+                  key={ex.id}
+                  type="button"
+                  className="link-btn"
+                  title={ex.description}
+                  onClick={() =>
+                    patch({ sites: ex.sites, blockSchedule: ex.blockSchedule })
+                  }
+                >
+                  {ex.label}
+                </button>
+              ))}{" "}
+              — a real diagram to edit, not a default. The shipped schedule is generic.
+            </div>
+            <div className="callout">
+              <strong>ACGME required experiences.</strong> Blocks count wherever they are
+              served, so a requirement met at a participating site is still met even
+              though it earns the sponsoring group no coverage — which is exactly why
+              some flagged blocks cannot simply be removed.
+              <ul className="req-list">
+                {requirements.map((r) => (
+                  <li key={r.id} className={r.met ? "met" : "unmet"}>
+                    {r.label}: {r.scheduledBlocks} of {r.minBlocks} blocks
+                    {r.met ? "" : " — short"}
+                    {r.note ? <span className="req-note"> {r.note}</span> : null}
+                  </li>
+                ))}
+              </ul>
+              Minimums are a starting point to verify against the current Program
+              Requirements, not a compliance determination.
+            </div>
+            <div className="callout">
+              This is the model's evidence base, not another set of dials. The
+              sponsor-site share, on-anesthesia share, and IME-countable share underneath
+              every coverage figure are <strong>derived from these blocks</strong> — a
+              schedule is a fact, a fraction typed beside it is only an opinion. Blocks
+              earning the sponsor no anesthesia care are flagged rather than averaged away.
+            </div>
+            {RESIDENCY_YEARS.map((year) => (
+              <div key={year} className="clinical-year">
+                <h4>{YEAR_LABELS[year]}</h4>
+                <BlockScheduleEditor
+                  year={year}
+                  sites={inputs.sites}
+                  blocks={inputs.blockSchedule[year]}
+                  onChange={(updated) =>
+                    patch({
+                      blockSchedule: { ...inputs.blockSchedule, [year]: updated },
+                    })
+                  }
+                />
+              </div>
+            ))}
+          </Section>
+
+          <Section
             title="Resident clinical value by year"
             subtitle="How much anesthesia coverage each level provides"
             defaultOpen={false}
@@ -799,26 +881,58 @@ export function App() {
             {RESIDENCY_YEARS.map((year) => (
               <div key={year} className="clinical-year">
                 <h4>{YEAR_LABELS[year]}</h4>
+                <div className="callout">
+                  Derived from the block schedule:{" "}
+                  <strong>{percent(scheduleDerived[year].sponsorSiteShare)}</strong> of the
+                  year at the sponsor hospital,{" "}
+                  <strong>{percent(scheduleDerived[year].fractionOnAnesthesia)}</strong> of
+                  that on anesthesia,{" "}
+                  <strong>{percent(scheduleDerived[year].imeCountableShare)}</strong>{" "}
+                  IME-countable. Edit the blocks above to change these.
+                </div>
+                <div className="grid-2">
+                  <NumberField
+                    label="Duty hours / week"
+                    help="ACGME caps duty hours at 80/week averaged over four weeks."
+                    cite={[22]}
+                    value={inputs.clinical[year].dutyHoursPerWeek}
+                    onChange={(v) => patchClinical(year, { dutyHoursPerWeek: v })}
+                    clamp={{ min: 0, max: 80 }}
+                    step={1}
+                  />
+                  <NumberField
+                    label="Duty weeks / year"
+                    help="52 less vacation. Vacation lives here and nowhere else."
+                    value={inputs.clinical[year].dutyWeeksPerYear}
+                    onChange={(v) => patchClinical(year, { dutyWeeksPerYear: v })}
+                    clamp={{ min: 0, max: 52 }}
+                    step={1}
+                  />
+                </div>
                 <SliderField
-                  label="Share of the year at the sponsor hospital"
-                  help="Time at participating sites (county, VA, children's) generates neither sponsor Medicare FTE nor sponsor coverage."
-                  value={inputs.clinical[year].sponsorSiteShare}
-                  onChange={(v) => patchClinical(year, { sponsorSiteShare: v })}
-                />
-                <SliderField
-                  label="Fraction of sponsor-site time on anesthesia"
-                  help={`Conditional on being here. Composite anesthesia exposure over the year: ${percent(
-                    inputs.clinical[year].sponsorSiteShare *
-                      inputs.clinical[year].fractionOnAnesthesia
-                  )}.`}
-                  value={inputs.clinical[year].fractionOnAnesthesia}
-                  onChange={(v) => patchClinical(year, { fractionOnAnesthesia: v })}
-                />
-                <SliderField
-                  label="Coverage capability (CRNA-equivalent)"
-                  value={inputs.clinical[year].anesthesiaCoverageFte}
-                  onChange={(v) => patchClinical(year, { anesthesiaCoverageFte: v })}
+                  label="Productivity per duty hour (vs a CRNA hour)"
+                  help="What the resident produces in one of their hours relative to a CRNA in one of theirs. Hours are counted above and attending dependence is priced as supervision cost, so this is one checkable clinical claim on its own."
+                  value={inputs.clinical[year].anesthesiaProductivityPerHour}
+                  onChange={(v) =>
+                    patchClinical(year, { anesthesiaProductivityPerHour: v })
+                  }
                   max={1.2}
+                />
+                <div className="callout">
+                  {number(sponsorAnesthesiaHours(inputs.clinical[year]))} sponsor-site
+                  anesthesia hours × {percent(inputs.clinical[year].anesthesiaProductivityPerHour)}{" "}
+                  ={" "}
+                  <strong>
+                    {number(coverageFteForYear(inputs.clinical[year]) * 2080)} location-hours
+                  </strong>{" "}
+                  a year, or <strong>{number(coverageFteForYear(inputs.clinical[year]), 2)}</strong>{" "}
+                  anesthetist-equivalent FTE.
+                </div>
+                <SliderField
+                  label="Share of case-slowdown charged to this level"
+                  help="How much slower the room actually runs with this resident in it. Zero for the senior years: a CA-2 or CA-3 runs a room about as efficiently as a CRNA, and what differs — the supervision ratio — is already charged in full in the supervision line."
+                  value={inputs.clinical[year].throughputLossWeight}
+                  onChange={(v) => patchClinical(year, { throughputLossWeight: v })}
                 />
                 <SliderField
                   label="Off-service coverage (mid-level equivalent)"
@@ -835,12 +949,6 @@ export function App() {
                   }
                   prefix="$"
                   step={5000}
-                />
-                <SliderField
-                  label="IME-countable share of sponsor time"
-                  help="Patient-care activities are IME-countable; non-patient-care research time is not (42 CFR 412.105(f))."
-                  value={inputs.clinical[year].imeCountableShare}
-                  onChange={(v) => patchClinical(year, { imeCountableShare: v })}
                 />
               </div>
             ))}

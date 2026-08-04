@@ -14,6 +14,8 @@ import { DEFAULT_INPUTS } from "./constants";
 import { runModel } from "./model";
 import { marginalIme } from "./gme";
 import type { ModelInputs } from "./types";
+import { RESIDENCY_YEARS } from "./types";
+import { blk } from "./schedule";
 
 const amount = (items: { key: string; amount: number }[], key: string): number =>
   items.find((i) => i.key === key)?.amount ?? 0;
@@ -90,32 +92,150 @@ const amount = (items: { key: string; amount: number }[], key: string): number =
  *   labor line     $3,545,693  ->  $3,965,076   (+11.8%)
  *   NPV            +$3,329,532  ->  +$5,497,855
  *   breakeven          year 7   ->      year 6
+ *
+ * UPDATED AGAIN (resident hours made explicit): coverage is now
+ * hours × site × on-anesthesia × per-hour productivity, rather than a blended
+ * `anesthesiaCoverageFte` that fused hours, per-hour output, and attending
+ * dependence into one unauditable number. This was a RE-EXPRESSION, not a
+ * re-valuation: the per-hour productivity defaults are the values the previous
+ * blended figures already implied at 60 duty hours a week, so the only movement
+ * is rounding those to two decimals — under 1.6% at any level, 0.003% on the
+ * labor line:
+ *
+ *   labor line     $3,965,076  ->  $3,964,963   (−0.003%)
+ *   NPV            +$5,497,855  ->  +$5,502,125
+ *
+ * That the totals barely moved is the point. Any change to the clinical claim
+ * itself — is a CA-3 really 61% of a CRNA per hour? — is now a separate, visible
+ * decision rather than something buried in a composite.
+ *
+ * UPDATED AGAIN (per-hour productivity revalued): that question was put to an
+ * anesthesiologist and answered. A resident actually delivering anesthesia care
+ * is worth far more per hour than the figures inherited from v1 implied — a CA-1
+ * about 70% of a CRNA, a CA-2 or CA-3 about 90%. What using a resident costs the
+ * department is SUPERVISION, which the model already charges in full and
+ * separately, plus juniority-weighted margin loss. Marking their hourly output
+ * down as well charged one effect through three channels — the error P0.2
+ * existed to remove, reappearing in a different input.
+ *
+ *   PGY-2  0.36 -> 0.70      PGY-3  0.51 -> 0.90      PGY-4  0.61 -> 0.90
+ *
+ *   labor line     $3,964,963  ->  $6,606,706   (+66.6%)
+ *   NPV            +$5,502,125  ->  +$15,345,325
+ *   breakeven          year 6   ->      year 4
+ *
+ * This is by far the largest input change in the model's history, and it rests
+ * on one clinician's judgment rather than on arithmetic. It should be the first
+ * number a skeptical reviewer is pointed at, not buried. Two consequences worth
+ * stating: at 90% output across ~1.55x a CRNA's worked hours, one CA-3 displaces
+ * MORE than one CRNA FTE (1.065); and PGY-1 is now the only level still carrying
+ * a v1 placeholder (0.22), tolerable solely because it is under 3% of the line.
+ *
+ * UPDATED AGAIN (senior throughput weight): the same assumption was still alive
+ * in a second place. juniorityWeight() was a HARDCODED function — never a user
+ * input, in violation of the model's own rule — charging a CA-2 room 60% and a
+ * CA-3 room 30% of the case-slowdown penalty. But a senior resident runs the
+ * room about as efficiently as a CRNA; what differs is the supervision ratio,
+ * and that is charged in full and separately. The weight is now a per-level
+ * input, zero for both senior years:
+ *
+ *   throughput loss line  $317,269  ->  $149,870
+ *   NPV            +$15,345,325  ->  +$16,181,672
+ *
+ * Worth noticing HOW this one was found. The productivity revaluation two
+ * commits ago fixed the visible instance of "residents are slower than CRNAs".
+ * This was the same belief hiding in a different input, and it survived because
+ * it was hardcoded where no reviewer would look for an assumption.
+ *
+ * UPDATED AGAIN (the real block schedule) — and this one reverses everything.
+ * The program's actual block diagram replaced the three fractions the model had
+ * been asserting, and it says something none of them did: the SENIOR YEARS ARE
+ * MOSTLY SOMEWHERE ELSE. A CA-2 spends 3 of 13 blocks at Valleywise and a CA-3
+ * spends 3.4; the rest is at St. Joseph's, Barrow, and Phoenix Children's,
+ * which are different Medicare providers with their own CCNs.
+ *
+ *   sponsor-site share   PGY-3  0.85 asserted  ->  0.231 scheduled
+ *                        PGY-4  0.90 asserted  ->  0.262 scheduled
+ *
+ * The sponsor pays four years of stipends and receives a quarter of the senior
+ * coverage, so the labor line falls by 74% and both Medicare streams fall with
+ * the countable FTE:
+ *
+ *   labor line     $6,606,706  ->  $1,731,620
+ *   DGME             $976,368  ->    $589,361
+ *   IME            $1,043,918 (from $1,785,573)
+ *   NPV           +$16,181,672  ->  -$5,783,005
+ *   breakeven          year 4   ->      never
+ *
+ * Every prior correction in this file moved the answer up, and each was
+ * defensible. This one came from evidence rather than judgment, and it moved
+ * the answer down by more than all of them moved it up. That asymmetry is the
+ * point: the assumptions nobody had checked were the ones flattering the
+ * program, and they were flattering it because a fraction typed beside a
+ * schedule is an opinion, while the schedule is a fact.
+ *
+ * CORRECTED IMMEDIATELY AFTER (the sponsoring unit is an alliance): the reading
+ * above was wrong, and wrong in an instructive way. It measured the schedule
+ * against ONE hospital. Valleywise Health and CommonSpirit St. Joseph's both
+ * put cap room into this program through the Creighton Health Alliance in
+ * Phoenix and divide its costs between them — a Medicare GME affiliated group
+ * (42 CFR 413.79(f)). Blocks at St. Joseph's and Barrow are therefore inside
+ * the sponsoring group, not lost to a stranger. Only Phoenix Children's is
+ * outside it.
+ *
+ *   alliance-site share   PGY-3  0.231 (as one hospital)  ->  0.846
+ *                         PGY-4  0.262                    ->  0.815
+ *
+ *   labor line     $1,731,620  ->  $4,601,576
+ *   NPV            -$5,783,005  ->  +$15,081,458
+ *   breakeven            never   ->      year 4
+ *
+ * Two lessons, both worth more than the number. The schedule was right and the
+ * INTERPRETATION of it was wrong: data does not speak for itself, and "where is
+ * this resident" is meaningless until "who is asking" is settled. And the
+ * original asserted fractions (0.85, 0.90) turn out to have been roughly right
+ * for the alliance while badly wrong for a single hospital — which is exactly
+ * the kind of coincidence that keeps a broken model looking healthy.
+ *
+ * UPDATED AGAIN (the default is generic again): one program's block diagram had
+ * become the shipped default, which would quietly make every other program's
+ * answer wrong. The default is now a generic four-year schedule built to satisfy
+ * the accreditation minimums, at role-named sites with no CCNs; the real diagram
+ * moved to examples.ts to be loaded and edited. These frozen numbers therefore
+ * describe the GENERIC program and are not a statement about anyone's:
+ *
+ *   NPV           +$15,081,458  ->  +$18,168,423
+ *   breakeven          year 4   ->      year 3
+ *
+ * The generic schedule keeps its residents closer to home than the real one
+ * does, which is why it reads better. That is a fact about the placeholder, not
+ * a finding — and a reason to load a real diagram before believing any of it.
  * ------------------------------------------------------------------------ */
 describe("Frozen default program (P7.3)", () => {
   const r = runModel(DEFAULT_INPUTS);
 
   it("reports the frozen summary", () => {
-    expect(r.summary.nominalCumulativeNet).toBeCloseTo(10_292_215.15, 1);
-    expect(r.summary.npv).toBeCloseTo(5_497_855.49, 1);
-    expect(r.summary.breakevenYear).toBe(6);
-    expect(r.summary.steadyStateAnnualNet).toBeCloseTo(1_951_773.55, 1);
+    expect(r.summary.nominalCumulativeNet).toBeCloseTo(29_419_940.84, 1);
+    expect(r.summary.npv).toBeCloseTo(18_168_423.28, 1);
+    expect(r.summary.breakevenYear).toBe(3);
+    expect(r.summary.steadyStateAnnualNet).toBeCloseTo(4_143_555.54, 1);
   });
 
   it("reports the frozen mature year", () => {
     expect(r.steadyState.programYear).toBe(6);
     expect(r.steadyState.totalResidents).toBeCloseTo(23.2896, 4);
 
-    expect(amount(r.steadyState.benefits, "dgme")).toBeCloseTo(976_368, 0);
-    expect(amount(r.steadyState.benefits, "ime")).toBeCloseTo(1_785_573, 0);
-    expect(amount(r.steadyState.benefits, "labor")).toBeCloseTo(3_965_076, 0);
-    expect(amount(r.steadyState.benefits, "offservice")).toBeCloseTo(257_035, 0);
+    expect(amount(r.steadyState.benefits, "dgme")).toBeCloseTo(1_119_854, 0);
+    expect(amount(r.steadyState.benefits, "ime")).toBeCloseTo(2_104_095, 0);
+    expect(amount(r.steadyState.benefits, "labor")).toBeCloseTo(5_726_956, 0);
+    expect(amount(r.steadyState.benefits, "offservice")).toBeCloseTo(611_975, 0);
     expect(amount(r.steadyState.benefits, "retention")).toBeCloseTo(785_592, 0);
 
     expect(amount(r.steadyState.costs, "residentsalary")).toBeCloseTo(2_591_901, 0);
     expect(amount(r.steadyState.costs, "support")).toBeCloseTo(1_368_860, 0);
     expect(amount(r.steadyState.costs, "perresident")).toBeCloseTo(715_473, 0);
-    expect(amount(r.steadyState.costs, "efficiency")).toBeCloseTo(182_303, 0);
-    expect(amount(r.steadyState.costs, "supervision")).toBeCloseTo(959_333, 0);
+    expect(amount(r.steadyState.costs, "efficiency")).toBeCloseTo(143_070, 0);
+    expect(amount(r.steadyState.costs, "supervision")).toBeCloseTo(1_385_612, 0);
   });
 
   it("keeps line items summing to the reported totals in every year", () => {
@@ -177,9 +297,20 @@ describe("Property: NPV is non-increasing in the discount rate", () => {
       .summary.npv;
 
   it("holds for a conventional program: spend first, earn later", () => {
+    // The defaults are conventional again now that the alliance is the
+    // sponsoring unit, but the shape is still CONSTRUCTED rather than assumed —
+    // the property is about cash-flow shape, not about this program. So the conventional shape is CONSTRUCTED rather than hunted for —
+    // a program whose residents stay at the sponsor and deliver anesthesia,
+    // which spends first and earns later as the property requires.
+    const allSponsorAnesthesia = Object.fromEntries(
+      RESIDENCY_YEARS.map((year) => [
+        year,
+        Array.from({ length: 13 }, () => blk("anes", "sponsor", 0.2)),
+      ])
+    ) as ModelInputs["blockSchedule"];
     const programs: ModelInputs[] = [
-      DEFAULT_INPUTS,
-      { ...DEFAULT_INPUTS, residentsPerClass: 12 },
+      { ...DEFAULT_INPUTS, blockSchedule: allSponsorAnesthesia },
+      { ...DEFAULT_INPUTS, residentsPerClass: 10, blockSchedule: allSponsorAnesthesia },
     ];
     for (const program of programs) {
       // Guard the precondition rather than assuming it: the property below is a
@@ -198,14 +329,17 @@ describe("Property: NPV is non-increasing in the discount rate", () => {
   });
 
   it("inverts for a program that never turns a profit — as it should", () => {
-    // A hospital with 8 FTE of headroom training 24 residents loses money in
+    // A hospital running two anesthetizing locations, at its cap with no awarded
+    // slots and no retention credit: there is almost no coverage demand for the
+    // residents to fill, no Medicare money behind them, and it loses money in
     // every single year. Discounting a stream of pure losses makes NPV LESS
     // negative, so a higher hurdle rate flatters it. That is arithmetic, not a
     // bug, and it is exactly why NPV alone is a poor way to read this model —
     // the breakeven year and the year table say what NPV cannot.
     const alwaysLosing: ModelInputs = {
       ...DEFAULT_INPUTS,
-      gme: { ...DEFAULT_INPUTS.gme, scenario: "existingUnderCap", capHeadroomFte: 8 },
+      locations: { ...DEFAULT_INPUTS.locations, averageConcurrentStaffedLocations: 2 },
+      gme: { ...DEFAULT_INPUTS.gme, scenario: "atCap", awardedNewSlots: 0 },
       retention: { ...DEFAULT_INPUTS.retention, enabled: false },
     };
     const years = runModel(alwaysLosing).years;

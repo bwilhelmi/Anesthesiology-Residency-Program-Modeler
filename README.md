@@ -48,7 +48,7 @@ pre-revenue build-up happen inside the projection, not in your head.
 | **Program leadership & administration** | Program Director and Associate PD protected time at the anesthesiologist rate, coordinator salary, and non-billable faculty teaching effort. |
 | **Per-resident program costs** | Professional liability, the DIO/GMEC/GME-office allocation the ACGME Institutional Requirements oblige, and the fee stack (ERAS/NRMP, ITE, ABA, licenses, certifications). |
 | **Fixed program overhead** | Accreditation fees, recruitment, simulation, resident education funds. |
-| **Teaching efficiency loss** | Lost clinical margin from slower teaching cases, weighted toward junior residents — charged **once**, on the covered locations. |
+| **Teaching efficiency loss** | Lost clinical margin from slower teaching cases, charged **once**, on the covered locations, and weighted per level. Zero for the senior years: a CA-2 or CA-3 runs a room about as efficiently as a CRNA — what differs is the supervision ratio, which is charged separately and in full. |
 | **Startup & accreditation** | Spread across the pre-revenue years, where it is actually spent. |
 | **Participating-site support** | Net affiliation-agreement payments, in either direction. |
 
@@ -134,16 +134,73 @@ sharply in where the resident's value lands:
   under supervision, with coverage capability ramping from a fraction of a CRNA
   toward near-independent senior coverage.
 
-Where a resident *is* matters as much as what they do. Coverage composes as:
+Where a resident *is*, and for how many hours, matters as much as what they do.
+Coverage composes as:
 
 ```
-coverage = sponsorSiteShare × fractionOnAnesthesia × anesthesiaCoverageFte
+hours    = dutyHoursPerWeek × dutyWeeksPerYear × sponsorSiteShare × fractionOnAnesthesia
+coverage = hours × anesthesiaProductivityPerHour / 2,080
 ```
 
-Medicare FTE counts at the hospital where the training occurs, and clinical value
-accrues where the resident is standing — so months at a county hospital or VA
-generate neither sponsor FTE nor sponsor coverage. Every one of these parameters
-is editable per PGY level.
+Each factor answers one question and can be checked on its own. That is a change
+from earlier versions, which fused hours, per-hour output, and attending
+dependence into a single `anesthesiaCoverageFte` — a number that could not be
+audited, because "0.85" might mean *works CRNA hours at 85% productivity* or
+*works 1.6× the hours at 53%*, and those are very different clinical claims.
+
+Stating hours also makes the comparison against a CRNA symmetric: **a resident's
+duty week is materially longer than a CRNA's** (2,880 duty hours a year at the
+defaults, against 1,860 worked CRNA hours), while their output per hour is
+lower. Both facts are now visible instead of silently netted against each other.
+At the defaults the model claims a CA-2 or CA-3 delivers about **90%** of a
+CRNA's output in the hour they both stand in a room. That is a clinical
+judgment, and a consequential one: the economic cost of staffing with a senior
+resident is taken to be **supervision** — the extra attending time a 1:2 teaching
+room consumes, charged in full and separately — rather than reduced output.
+Discounting their hourly productivity as well would charge the same effect twice.
+
+It has a consequence worth checking before you quote it: at 90% of a CRNA's
+hourly output across roughly 1.55× their worked hours, **one CA-3 displaces more
+than one CRNA FTE** (1.07). That follows arithmetically from the duty-hour and
+productivity inputs — but it is the first number a skeptical CFO will stop on.
+
+The junior levels are weaker numbers, carried over from earlier ballpark
+estimates. They matter less: PGY-1 is under 3% of the labor line.
+
+Medicare FTE counts at the provider where the training occurs, and clinical
+value accrues where the resident is standing. But "the provider" is not always
+one hospital: under a **Medicare GME affiliated group** (42 CFR 413.79(f)),
+members pool FTE cap room and share the program's costs, and a block at a member
+hospital stays inside the sponsoring unit. Each member still carries its own
+CCN, cap, per-resident amount and IME base.
+
+### The block schedule, and what accreditation requires
+
+These are not free-floating fractions. They are **derived from the block
+schedule** — 13 blocks of 4 weeks per training year, each a rotation at a site,
+with its outpatient and research shares. Edit the blocks; the fractions follow.
+Blocks that earn the sponsoring group no anesthesia care, research above all,
+are flagged individually rather than averaged away.
+
+**A flagged block is not necessarily a wasteful one.** The model checks the
+schedule against the ACGME's required clinical experiences and shows the count
+against each minimum, because the two readings have to be held together: the
+pediatric months usually leak coverage to a children's hospital precisely
+because the sponsor has no pediatric case mix, and deleting them would cost the
+program its accreditation. A requirement is counted as met wherever it is
+served.
+
+The shipped minimums follow the ACGME Program Requirements for Graduate Medical
+Education in Anesthesiology and are **a starting point to verify, not a
+compliance determination** — the requirements are revised, several are stated as
+case minimums rather than durations, and some programs satisfy them
+longitudinally. Edit them to match the current document.
+
+The default schedule is **generic**, built to satisfy those minimums at
+role-named sites ("sponsor hospital", "alliance partner", "participating site").
+Real diagrams ship as loadable examples, not as defaults — one program's
+schedule as everyone's starting point would quietly make everyone else's answer
+wrong.
 
 ---
 
@@ -212,6 +269,25 @@ a resident room costs on top of it.
 
 At 1:2 the cost vanishes entirely — the resident room ties up no more attending
 time than the CRNA room it replaced.
+
+### Whose number is this?
+
+When the sponsoring unit is an affiliated group, the model reports the group's
+**combined** return. It holds one cap, one per-resident amount, one bed count
+and one IME base, so with several member providers those fields stand in for all
+of them, and the output raises a warning saying so.
+
+Splitting the result between members is not something the model can infer. It
+needs two documents, and they live in different places:
+
+| what | where |
+| --- | --- |
+| FTE cap slots each member contributes | the **Medicare GME affiliation agreement**, which must be in writing and filed with the MAC each year under 42 CFR 413.79(f) |
+| how the program's costs are divided | the **institutional affiliation / participation agreements** between the member hospitals, usually held by the GME office or the DIO |
+
+Until those numbers are in hand, read the headline as the alliance's, not any
+one hospital's — and do not put it in front of a single member's board as
+theirs.
 
 **Scope note.** The slider stops at 1:4 and does not model independent CRNA
 practice. That is deliberate rather than an oversight: independent practice is

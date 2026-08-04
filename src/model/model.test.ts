@@ -22,8 +22,9 @@ import {
 import {
   coverageFteForYear,
   crnaCostOfCoverage,
+  residentAnnualDutyHours,
+  sponsorAnesthesiaHours,
   incrementalSupervisionCostPerLocation,
-  juniorityWeight,
   laborSubstitutionValue,
   loaded,
   offServiceValue,
@@ -35,6 +36,7 @@ import {
   residentSalaryCost,
 } from "./program";
 import { FIRST_GRADUATION_BENEFIT_YEAR } from "./workforce";
+import { applyScheduleToClinical } from "./schedule";
 import {
   computeYear,
   countableFteForYear,
@@ -334,15 +336,16 @@ describe("Clinical value", () => {
 
   it("coverage FTE is pure staffing equivalence, with no throughput discount", () => {
     const p = DEFAULT_INPUTS.clinical.PGY2;
+    const hours = p.dutyHoursPerWeek * p.dutyWeeksPerYear * p.sponsorSiteShare * p.fractionOnAnesthesia;
     expect(coverageFteForYear(p)).toBeCloseTo(
-      p.sponsorSiteShare * p.fractionOnAnesthesia * p.anesthesiaCoverageFte,
+      (hours * p.anesthesiaProductivityPerHour) / 2080,
       10
     );
   });
 
-  it("labor substitution value scales with loaded CRNA cost", () => {
+  it("labor substitution value scales with the cost of the coverage displaced", () => {
     const val = laborSubstitutionValue(
-      DEFAULT_INPUTS.clinical.PGY4,
+      DEFAULT_INPUTS.clinical.PGY2,
       DEFAULT_INPUTS.salaries
     );
     expect(val).toBeGreaterThan(0);
@@ -354,6 +357,94 @@ describe("Clinical value", () => {
   it("intern delivers meaningful off-service value", () => {
     const v = offServiceValue(DEFAULT_INPUTS.clinical.PGY1);
     expect(v).toBeGreaterThan(0);
+  });
+});
+
+describe("Resident hours (explicit)", () => {
+  it("counts duty hours net of vacation, from the two stated inputs", () => {
+    const p = DEFAULT_INPUTS.clinical.PGY4;
+    expect(residentAnnualDutyHours(p)).toBe(60 * 48);
+    // Vacation lives in weeks and nowhere else — fractionOnAnesthesia divides
+    // worked time only, so it must not discount for vacation a second time.
+    expect(residentAnnualDutyHours({ ...p, dutyWeeksPerYear: 52 })).toBe(60 * 52);
+  });
+
+  it("narrows duty hours to sponsor-site anesthesia hours", () => {
+    const p = DEFAULT_INPUTS.clinical.PGY4;
+    expect(sponsorAnesthesiaHours(p)).toBeCloseTo(
+      60 * 48 * p.sponsorSiteShare * p.fractionOnAnesthesia,
+      10
+    );
+  });
+
+  it("scales coverage linearly with duty hours", () => {
+    const p = DEFAULT_INPUTS.clinical.PGY4;
+    const base = coverageFteForYear(p);
+    expect(coverageFteForYear({ ...p, dutyHoursPerWeek: 30 })).toBeCloseTo(base / 2, 10);
+    expect(coverageFteForYear({ ...p, dutyHoursPerWeek: 0 })).toBe(0);
+  });
+
+  it("credits a resident working CRNA hours at CRNA productivity as one FTE", () => {
+    // The sanity anchor for the whole re-expression: same hours, same rate, all
+    // time on anesthesia at the sponsor site => exactly one coverage FTE.
+    const params = {
+      ...DEFAULT_INPUTS.clinical.PGY4,
+      dutyHoursPerWeek: 40,
+      dutyWeeksPerYear: 52,
+      sponsorSiteShare: 1,
+      fractionOnAnesthesia: 1,
+      anesthesiaProductivityPerHour: 1,
+    };
+    expect(coverageFteForYear(params)).toBeCloseTo(1, 10);
+  });
+
+  it("keeps the intern year value-neutral against the blended figure it replaced", () => {
+    // PGY-1 is the last level still carried over arithmetically from v1's
+    // blended coverage value at 60 duty hours a week — nothing has revalued it,
+    // so it should still land within rounding of where it was. This is what
+    // keeps "re-expression" an enforceable claim for the level it still covers.
+    // PGY-2 through PGY-4 were revalued deliberately; see below.
+    const previouslyImplied: Record<string, number> = { PGY1: 0.045 };
+    for (const [year, before] of Object.entries(previouslyImplied)) {
+      const now = coverageFteForYear(
+        DEFAULT_INPUTS.clinical[year as keyof typeof DEFAULT_INPUTS.clinical]
+      );
+      expect(Math.abs(now / before - 1)).toBeLessThan(0.02);
+    }
+  });
+
+  it("pins the per-hour productivity claims, so changing one is deliberate", () => {
+    // Provenance differs, and the difference matters when judging them:
+    //   PGY-1                 derived from v1's blended placeholder — a weak
+    //                          number, but under 3% of the labor line
+    //   PGY-2 / PGY-3 / PGY-4  clinical judgment: a CA-1 is worth ~70% of a
+    //                          CRNA hour and a CA-2 or CA-3 ~90%, with the cost
+    //                          of using them sitting in the supervision line
+    expect(DEFAULT_INPUTS.clinical.PGY1.anesthesiaProductivityPerHour).toBe(0.22);
+    expect(DEFAULT_INPUTS.clinical.PGY2.anesthesiaProductivityPerHour).toBe(0.7);
+    expect(DEFAULT_INPUTS.clinical.PGY3.anesthesiaProductivityPerHour).toBe(0.9);
+    expect(DEFAULT_INPUTS.clinical.PGY4.anesthesiaProductivityPerHour).toBe(0.9);
+  });
+
+  it("has a senior resident exceed one anesthetist FTE, on hours alone", () => {
+    // Worth stating out loud, because it is the kind of headline that draws
+    // fire: at 90% of a CRNA's hourly output but ~1.55x their worked hours, one
+    // CA-3 displaces MORE than one CRNA FTE of coverage. That follows from the
+    // two inputs; it is not an extra assumption layered on top.
+    const ca3 = coverageFteForYear(DEFAULT_INPUTS.clinical.PGY4);
+    expect(ca3).toBeGreaterThan(1);
+    expect(ca3).toBeLessThan(1.2);
+  });
+
+  it("shows a duty week materially longer than a CRNA's", () => {
+    // The asymmetry the blended figure hid: a resident is in the building far
+    // more than a CRNA, and is individually less productive per hour. Both are
+    // now stated rather than netted against each other invisibly.
+    const p = DEFAULT_INPUTS.clinical.PGY4;
+    expect(residentAnnualDutyHours(p)).toBeGreaterThan(
+      DEFAULT_INPUTS.salaries.crnaWorkedHoursPerPaidFte
+    );
+    expect(p.anesthesiaProductivityPerHour).toBeLessThan(1);
   });
 });
 
@@ -552,34 +643,31 @@ describe("Throughput loss is charged once (P0.2)", () => {
     const cohort = residentsInProgramYear(inputs, 4);
     const r = computeYear(inputs, 4, cohort);
     const crnaLoaded = crnaCostOfCoverage(inputs.salaries);
+    const resolved = applyScheduleToClinical(inputs);
     const expected = RESIDENCY_YEARS.reduce((s, y) => {
-      const p = inputs.clinical[y];
-      return (
-        s +
-        cohort[y] *
-          p.sponsorSiteShare *
-          p.fractionOnAnesthesia *
-          p.anesthesiaCoverageFte *
-          crnaLoaded
-      );
+      const p = resolved.clinical[y];
+      const hours =
+        p.dutyHoursPerWeek * p.dutyWeeksPerYear * p.sponsorSiteShare * p.fractionOnAnesthesia;
+      return s + cohort[y] * ((hours * p.anesthesiaProductivityPerHour) / 2080) * crnaLoaded;
     }, 0);
     expect(r.benefits.find((b) => b.key === "labor")!.amount).toBeCloseTo(expected, 6);
     expect(r.costs.find((c) => c.key === "efficiency")!.amount).toBe(0);
   });
 
-  it("charges the loss only through the margin line, weighted by juniority", () => {
+  it("charges the loss only through the margin line, weighted per level", () => {
     const inputs: ModelInputs = { ...DEFAULT_INPUTS, residentsPerClass: 4 };
     const cohort = residentsInProgramYear(inputs, 4);
     const r = computeYear(inputs, 4, cohort);
+    const resolved = applyScheduleToClinical(inputs);
     const expected = RESIDENCY_YEARS.reduce((s, y) => {
-      const p = inputs.clinical[y];
+      const p = resolved.clinical[y];
       return (
         s +
         cohort[y] *
           coverageFteForYear(p) *
           inputs.efficiency.annualMarginPerStaffedLocation *
           inputs.efficiency.caseThroughputLoss *
-          juniorityWeight(y)
+          p.throughputLossWeight
       );
     }, 0);
     expect(r.costs.find((c) => c.key === "efficiency")!.amount).toBeCloseTo(expected, 6);
@@ -587,8 +675,8 @@ describe("Throughput loss is charged once (P0.2)", () => {
 });
 
 describe("Coverage cannot exceed staffed-location demand (P0.3)", () => {
-  const oversized: ModelInputs = { ...DEFAULT_INPUTS, residentsPerClass: 20 };
-  const doubled: ModelInputs = { ...DEFAULT_INPUTS, residentsPerClass: 40 };
+  const oversized: ModelInputs = { ...DEFAULT_INPUTS, residentsPerClass: 90 };
+  const doubled: ModelInputs = { ...DEFAULT_INPUTS, residentsPerClass: 180 };
 
   it("caps the labor benefit at demand while stipends keep scaling", () => {
     const a = computeYear(oversized, 4, residentsInProgramYear(oversized, 4));
@@ -632,7 +720,12 @@ describe("Coverage cannot exceed staffed-location demand (P0.3)", () => {
   });
 
   it("stays silent when coverage fits inside demand", () => {
-    expect(runModel(DEFAULT_INPUTS).warnings).toEqual([]);
+    // The defaults do raise the affiliated-group notice, which is about who the
+    // figures belong to rather than about the demand cap.
+    const capWarnings = runModel(DEFAULT_INPUTS).warnings.filter((w) =>
+      /staffed anesthetizing locations/.test(w)
+    );
+    expect(capWarnings).toEqual([]);
   });
 });
 
@@ -683,14 +776,18 @@ describe("Site allocation and countable FTE (P2.1)", () => {
     expect(y1.imeFte).toBeLessThan(y1.dgmeFte);
   });
 
-  it("composes coverage as sponsorSiteShare × fractionOnAnesthesia × capability", () => {
+  it("composes coverage from hours × site × on-anesthesia × per-hour productivity", () => {
     const params = {
       ...DEFAULT_INPUTS.clinical.PGY2,
+      dutyHoursPerWeek: 40,
+      dutyWeeksPerYear: 52, // exactly one 2,080-hour year, for legibility
       sponsorSiteShare: 0.85,
       fractionOnAnesthesia: 0.82,
-      anesthesiaCoverageFte: 0.5,
+      anesthesiaProductivityPerHour: 0.5,
     };
-    expect(coverageFteForYear(params)).toBeCloseTo(0.3485, 10);
+    // A resident working a CRNA's hours at half a CRNA's rate delivers exactly
+    // half of the sponsor-site on-anesthesia share.
+    expect(coverageFteForYear(params)).toBeCloseTo(0.85 * 0.82 * 0.5, 10);
   });
 
   it("credits off-service value only for sponsor-site off-service time", () => {

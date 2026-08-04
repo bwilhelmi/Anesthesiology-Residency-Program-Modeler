@@ -13,6 +13,7 @@ import type {
   ResidentYearClinicalParams,
 } from "./types";
 import { RESIDENCY_YEARS } from "./types";
+import { DEFAULT_SITES, blk, type BlockSchedule } from "./schedule";
 
 /* --------------------------- CMS / IME constants -------------------------- */
 
@@ -172,11 +173,21 @@ export const DEFAULT_SALARIES = {
  * departments. CA-1 through CA-3 progressively cover more anesthetizing
  * locations with less oversight.
  *
- * `anesthesiaCoverageFte` values are NET-OF-SLOWDOWN staffing equivalences: the
- * anesthetist-FTE a resident at that level actually displaces, already
- * reflecting that they work more slowly than an experienced CRNA. The separate
- * `caseThroughputLoss` input values the hospital's lost case margin and is not
- * applied here — see EfficiencyInputs.
+ * `anesthesiaProductivityPerHour` is what a resident produces in one duty hour
+ * relative to a CRNA in one of theirs.
+ *
+ * PROVENANCE DIFFERS BY LEVEL, and that is worth knowing before trusting any of
+ * them. PGY-2 through PGY-4 are deliberate clinical judgments: a CA-1 is worth
+ * about 70% of a CRNA hour and a CA-2 or CA-3 about 90%, with the cost of using
+ * a resident sitting in supervision rather than in lost output. PGY-1 alone is
+ * still carried over arithmetically from v1's blended placeholder — a weak
+ * number, but under 3% of the labor line, so it can stay unexamined cheaply.
+ *
+ * That distinction matters structurally. Attending dependence is already charged
+ * in full as incremental supervision cost, and teaching slowdown is already
+ * charged as juniority-weighted margin loss via `caseThroughputLoss`. Marking a
+ * senior resident down on output as well would charge one effect through three
+ * channels — the error P0.2 existed to remove.
  */
 export const DEFAULT_CLINICAL: Record<ResidencyYear, ResidentYearClinicalParams> = {
   PGY1: {
@@ -188,8 +199,14 @@ export const DEFAULT_CLINICAL: Record<ResidencyYear, ResidentYearClinicalParams>
     // Conditional on being at the sponsor site. Composite anesthesia exposure
     // is 0.5 × 0.3 = 0.15 — the same year-level exposure the model used before
     // site allocation existed.
+    // Intern duty hours run at least as heavy as the CA years, largely off
+    // service. Localize: this is a placeholder, and the program knows its own.
+    dutyHoursPerWeek: 60,
+    dutyWeeksPerYear: 48, // 52 less four weeks of vacation
     fractionOnAnesthesia: 0.3,
-    anesthesiaCoverageFte: 0.3,
+    anesthesiaProductivityPerHour: 0.22,
+    // A brand-new intern genuinely slows the room they are in.
+    throughputLossWeight: 1.0,
     offServiceCoverageFte: 0.55,
     offServiceProviderAnnualCost: 150_000,
   },
@@ -198,8 +215,16 @@ export const DEFAULT_CLINICAL: Record<ResidencyYear, ResidentYearClinicalParams>
     // Away time is subspecialty months the sponsor cannot staff itself.
     sponsorSiteShare: 0.85,
     imeCountableShare: 0.95,
+    dutyHoursPerWeek: 60,
+    dutyWeeksPerYear: 48,
     fractionOnAnesthesia: 0.92, // composite 0.78
-    anesthesiaCoverageFte: 0.5,
+    // Clinical judgment: a CA-1 in the room is worth about 70% of a CRNA hour.
+    // Below the senior levels — they are still learning the craft — but nothing
+    // like the 0.36 carried over from v1, which was really a supervision cost
+    // wearing a productivity label.
+    anesthesiaProductivityPerHour: 0.7,
+    // Still true of a CA-1: teaching in the room costs case time.
+    throughputLossWeight: 1.0,
     offServiceCoverageFte: 0.4,
     offServiceProviderAnnualCost: 150_000,
   },
@@ -207,8 +232,19 @@ export const DEFAULT_CLINICAL: Record<ResidencyYear, ResidentYearClinicalParams>
     // CA-2: subspecialty rotations, growing independence.
     sponsorSiteShare: 0.85,
     imeCountableShare: 0.95,
+    dutyHoursPerWeek: 60,
+    dutyWeeksPerYear: 48,
     fractionOnAnesthesia: 0.95, // composite 0.81
-    anesthesiaCoverageFte: 0.7,
+    // Clinical judgment, not derived: a CA-2 delivering anesthesia care is
+    // worth about 90% of a CRNA in that hour. The economic cost of using a
+    // resident instead is SUPERVISION — priced separately, and in full, as the
+    // incremental attending time a 1:2 teaching room consumes over a medically
+    // directed CRNA room. Discounting their hourly output as well would charge
+    // the same effect twice.
+    anesthesiaProductivityPerHour: 0.9,
+    // A CA-2 runs the room about as efficiently as a CRNA. The cost of using
+    // them is the supervision ratio, charged separately and in full.
+    throughputLossWeight: 0,
     offServiceCoverageFte: 0.4,
     offServiceProviderAnnualCost: 150_000,
   },
@@ -217,11 +253,82 @@ export const DEFAULT_CLINICAL: Record<ResidencyYear, ResidentYearClinicalParams>
     // class the sponsor keeps closest to home.
     sponsorSiteShare: 0.9,
     imeCountableShare: 0.95,
+    dutyHoursPerWeek: 60,
+    dutyWeeksPerYear: 48,
     fractionOnAnesthesia: 0.95, // composite 0.855
-    anesthesiaCoverageFte: 0.85,
+    // Same judgment as the CA-2 above: near-independent in the room, with the
+    // real cost sitting in the supervision line rather than in throughput.
+    anesthesiaProductivityPerHour: 0.9,
+    // As the CA-2 above: no slowdown to charge on a CA-3 room.
+    throughputLossWeight: 0,
     offServiceCoverageFte: 0.4,
     offServiceProviderAnnualCost: 150_000,
   },
+};
+
+/* ---------------------------- Block schedule ------------------------------ */
+
+/**
+ * A generic four-year anesthesiology block schedule: 13 blocks of 4 weeks a
+ * year, built to SATISFY the accreditation minimums in schedule.ts rather than
+ * to describe any particular program. Replace it with your own diagram — that is
+ * what the block editor is for.
+ *
+ * Sites are generic too. Everything is at the sponsor except the pediatric
+ * blocks, which sit at a participating site because most sponsors lack the
+ * paediatric case mix to provide them — the commonest real source of coverage
+ * leaking out of the sponsoring group, and one a program cannot simply delete
+ * without losing accreditation.
+ */
+export const DEFAULT_BLOCK_SCHEDULE: BlockSchedule = {
+  // Clinical base year: broad fundamental clinical skills, little anesthesia.
+  PGY1: [
+    ...Array.from({ length: 2 }, () => blk("anes", "sponsor", 0.3)),
+    ...Array.from({ length: 2 }, () => blk("ccm_sicu", "sponsor")),
+    ...Array.from({ length: 2 }, () => blk("im", "sponsor", 0.2)),
+    ...Array.from({ length: 2 }, () => blk("gen_surg", "sponsor", 0.3)),
+    blk("em", "sponsor", 0.8),
+    blk("peds", "sponsor", 0.3),
+    blk("cardio", "sponsor", 0.3),
+    blk("preop_pacu", "sponsor", 0.5),
+    blk("elect_pto", "elective", 0.3),
+  ],
+  // CA-1: general OR, with the first subspecialty exposures.
+  PGY2: [
+    ...Array.from({ length: 6 }, () => blk("anes", "sponsor", 0.3)),
+    blk("ob_anes", "sponsor", 0.02),
+    blk("acute_pain_ra", "sponsor", 0.4),
+    blk("or_nora", "sponsor", 0.6),
+    blk("preop_pacu", "sponsor", 0.5),
+    blk("ccm_sicu", "sponsor"),
+    blk("ped_anes", "participating", 0.3),
+    blk("elect_pto", "elective", 0.3),
+  ],
+  // CA-2: the subspecialty year, and where a research block usually sits.
+  PGY3: [
+    ...Array.from({ length: 2 }, () => blk("ct_anes", "sponsor", 0.1)),
+    ...Array.from({ length: 2 }, () => blk("neuro_anes", "sponsor", 0.05)),
+    ...Array.from({ length: 2 }, () => blk("ped_anes", "participating", 0.3)),
+    blk("ob_anes", "sponsor", 0.02),
+    blk("ccm_sicu", "sponsor"),
+    blk("chronic_pain", "sponsor_outpatient", 1.0),
+    blk("acute_pain_ra", "sponsor", 0.4),
+    blk("anes", "sponsor", 0.3),
+    blk("research", "sponsor", 0, 1),
+    blk("elect_pto", "elective", 0.3),
+  ],
+  // CA-3: senior year, largely independent in the room.
+  PGY4: [
+    ...Array.from({ length: 5 }, () => blk("anes", "sponsor", 0.3)),
+    blk("ct_anes", "sponsor", 0.1),
+    blk("neuro_anes", "sponsor", 0.05),
+    blk("ob_anes", "sponsor", 0.02),
+    blk("ped_anes", "participating", 0.3),
+    blk("acute_pain_ra", "sponsor", 0.4),
+    blk("ccm_sicu", "sponsor"),
+    blk("or_night", "sponsor", 0.1),
+    blk("elect_pto", "elective", 0.3),
+  ],
 };
 
 /* ------------------------------- Full default ----------------------------- */
@@ -325,6 +432,8 @@ export const DEFAULT_INPUTS: ModelInputs = {
     caseThroughputLoss: 0.08,
   },
   clinical: DEFAULT_CLINICAL,
+  blockSchedule: DEFAULT_BLOCK_SCHEDULE,
+  sites: DEFAULT_SITES,
 };
 
 /* ------------------------------- Scenarios -------------------------------- */
@@ -335,7 +444,8 @@ function scaledCoverage(factor: number): Record<ResidencyYear, ResidentYearClini
   for (const year of RESIDENCY_YEARS) {
     out[year] = {
       ...DEFAULT_CLINICAL[year],
-      anesthesiaCoverageFte: DEFAULT_CLINICAL[year].anesthesiaCoverageFte * factor,
+      anesthesiaProductivityPerHour:
+        DEFAULT_CLINICAL[year].anesthesiaProductivityPerHour * factor,
     };
   }
   return out;

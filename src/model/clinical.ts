@@ -40,47 +40,53 @@ export function loaded(baseSalary: number, benefitLoadRate: number): number {
   return baseSalary * (1 + benefitLoadRate);
 }
 
+/** Duty hours one resident at this level works in a year, net of vacation. */
+export function residentAnnualDutyHours(params: ResidentYearClinicalParams): number {
+  return Math.max(0, params.dutyHoursPerWeek) * Math.max(0, params.dutyWeeksPerYear);
+}
+
 /**
- * Juniority weight in [0,1] applied to the teaching throughput loss: junior
- * residents (CA-1) slow cases more than senior residents (CA-3). PGY1 carries
- * the full loss on its (small) anesthesia exposure.
+ * Duty hours a resident spends staffing anesthetizing locations AT THE SPONSOR
+ * HOSPITAL: annual duty hours narrowed to sponsor-site time, then to the
+ * on-anesthesia share of it.
  */
-export function juniorityWeight(year: ResidencyYear): number {
-  switch (year) {
-    case "PGY1":
-      return 1.0;
-    case "PGY2":
-      return 1.0;
-    case "PGY3":
-      return 0.6;
-    case "PGY4":
-      return 0.3;
-  }
+export function sponsorAnesthesiaHours(params: ResidentYearClinicalParams): number {
+  return (
+    residentAnnualDutyHours(params) *
+    clamp01(params.sponsorSiteShare) *
+    clamp01(params.fractionOnAnesthesia)
+  );
 }
 
 /**
  * Anesthetist-equivalent coverage FTE delivered to the SPONSOR hospital by one
- * resident at a given level:
+ * resident at a given level, in units of a delivered coverage-FTE-year
+ * (PAID_HOURS_PER_FTE_YEAR of staffed location time):
  *
- *     coverage = sponsorSiteShare × fractionOnAnesthesia × anesthesiaCoverageFte
+ *     hours    = dutyHoursPerWeek × dutyWeeksPerYear
+ *              × sponsorSiteShare × fractionOnAnesthesia
+ *     coverage = hours × anesthesiaProductivityPerHour / 2080
  *
- * The three factors answer three different questions — is the resident at this
- * hospital, are they on anesthesia while here, and how much of an anesthetist
- * are they while on anesthesia. Coverage delivered at a participating site is
- * real work, but it is not the sponsor's benefit.
+ * Each factor answers one question, and each can be checked on its own: how
+ * many hours does the resident work, are they at this hospital, are they on
+ * anesthesia while here, and how much do they produce in an hour relative to a
+ * CRNA. The old formulation fused the last three into a single opaque number.
  *
- * This is pure staffing equivalence, with no throughput discount applied.
- * Slower individual case conduct is already reflected in the per-level
- * `anesthesiaCoverageFte` ramp (a CA-1 is booked as a fraction of an anesthetist
- * precisely because they are slower); the remaining economic effect of teaching
- * on the hospital's case volume is charged once as margin loss in the model.
+ * Expressing it in hours also makes the comparison against a CRNA symmetric:
+ * crnaCostOfCoverage() prices a CRNA in worked hours, and a resident's duty
+ * week is materially longer than a CRNA's — which is a real source of coverage,
+ * and was invisible before.
+ *
+ * This remains pure staffing equivalence, with no throughput discount applied.
+ * The economic effect of teaching on the hospital's case volume is charged once
+ * as margin loss in the model; attending dependence is charged once as
+ * incremental supervision cost.
  */
 export function coverageFteForYear(params: ResidentYearClinicalParams): number {
   return Math.max(
     0,
-    clamp01(params.sponsorSiteShare) *
-      params.fractionOnAnesthesia *
-      params.anesthesiaCoverageFte
+    (sponsorAnesthesiaHours(params) * Math.max(0, params.anesthesiaProductivityPerHour)) /
+      PAID_HOURS_PER_FTE_YEAR
   );
 }
 

@@ -76,8 +76,21 @@ describe("Tornado (P5.1)", () => {
       },
     }).summary.npv;
     expect(bar.low).toBeCloseTo(low, 6);
-    // A higher discount rate is worth less.
+
+    // Direction depends on the cash-flow shape, not on the discount rate: for a
+    // program that earns its way out a higher rate is worth less, and for one
+    // that loses money every year a higher rate discounts the losses and
+    // flatters it. The shipped defaults are the former.
     expect(bar.high).toBeLessThan(bar.low);
+
+    const alwaysLosing = {
+      ...fixture,
+      gme: { ...fixture.gme, scenario: "atCap" as const, awardedNewSlots: 0 },
+      retention: { ...fixture.retention, enabled: false },
+      locations: { ...fixture.locations, averageConcurrentStaffedLocations: 2 },
+    };
+    const losingBar = tornado(alwaysLosing).find((b) => b.key === "discount")!;
+    expect(losingBar.high).toBeGreaterThan(losingBar.low);
   });
 
   it("swings the supervision ratio between one and two rooms", () => {
